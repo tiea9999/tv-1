@@ -324,7 +324,7 @@ const SOURCES=[
 {name:"jav24 18+",url:"https://raw.githubusercontent.com/tiea9999/tv-1/refs/heads/main/playlist_jav24.json"},
 {name:"inter 18+",url:"https://raw.githubusercontent.com/tiea9999/tv-1/refs/heads/main/inter.json"},    
 ];
-const FALLBACK_IMG="data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450"><rect width="100%" height="100%" fill="#1a1a1a"/><text x="50%" y="50%" fill="#fff" font-size="22" text-anchor="middle" dy=".3em">NO IMAGE</text></svg>`);
+const FALLBACK_IMG="https://dl.dropboxusercontent.com/scl/fi/k77ovxc35qm0girjo43mt/logo.png?rlkey=1x7w8nk1fl6gptnt9jiaugt54";
 let grid=document.getElementById('grid'),overlay=document.getElementById('overlay'),video=document.getElementById('video'),frame=document.getElementById('frame'),player=document.getElementById('player'),statusbar=document.getElementById('statusbar');
 let hls=null,store={},allView={active:false,name:'',page:1},currentList=[],currentIndex=0,currentUrl='',lastFocus=null;
 function setStatus(t){t=String(t||'');if(t.includes('กำลังเล่น Main ผ่าน Worker'))t='';statusbar.textContent=t}
