@@ -320,8 +320,9 @@
     <script>
         const PROXY="https://iptv.tawatchai250958.workers.dev/?url=";
 const SOURCES=[
-{name:"jav24 18+",url:"https://raw.githubusercontent.com/tiea9999/tv-1/refs/heads/main/playlist_jav24.json"}
-{name:"inter 18+",url:"https://raw.githubusercontent.com/tiea9999/tv-1/refs/heads/main/inter.json"}
+
+{name:"jav24 18+",url:"https://raw.githubusercontent.com/tiea9999/tv-1/refs/heads/main/playlist_jav24.json"},
+{name:"jav24 18+",url:"https://raw.githubusercontent.com/tiea9999/tv-1/refs/heads/main/inter.json"},    
 ];
 const FALLBACK_IMG="data:image/svg+xml;utf8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450"><rect width="100%" height="100%" fill="#1a1a1a"/><text x="50%" y="50%" fill="#fff" font-size="22" text-anchor="middle" dy=".3em">NO IMAGE</text></svg>`);
 let grid=document.getElementById('grid'),overlay=document.getElementById('overlay'),video=document.getElementById('video'),frame=document.getElementById('frame'),player=document.getElementById('player'),statusbar=document.getElementById('statusbar');
@@ -417,6 +418,15 @@ async function loadAll(){
   }
 
   const rows=[];
+  // ===== TIEA 037HD CATEGORY PRIORITY =====
+  // บังคับให้ หนังใหม่2026 แสดงก่อน หนังใหม่ชนโรง เสมอ
+  const priorityGroups=['หนังใหม่2026','หนังใหม่ชนโรง'];
+  priorityGroups.forEach(g=>{
+    const i=groupOrder.indexOf(g);
+    if(i>=0) groupOrder.splice(i,1);
+  });
+  groupOrder.unshift(...priorityGroups);
+
   if(latest.length){
     latest.sort((a,b)=>(b.__updatedTime||0)-(a.__updatedTime||0));
     store['🔥 อัปเดทล่าสุด']={data:latest,page:1,error:''};
