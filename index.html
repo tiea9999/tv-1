@@ -1732,7 +1732,7 @@ class Tiea24ChildDirectLoader extends Hls.DefaultConfig.loader{
   }
 }
 
-/* TIEA B-CDN DIRECT STABLE FIX 2026-09-12: b-cdn.net bypasses Worker to avoid periodic buffering */
+/* TIEA B-CDN WORKER BUFFER FIX 2026-09-12: GitHub Pages uses Worker for CORS + larger VOD buffer */
 function shouldWorkerFirst(url){
   const u=String(url||'').toLowerCase();
   return (
@@ -1740,6 +1740,7 @@ function shouldWorkerFirst(url){
     u.includes('24playerhd') ||
     u.includes('main.24playerhd.com') ||
     u.includes('vdohls.com') ||
+    u.includes('b-cdn.net') ||
 
     // MySeries new hosts: must go through Worker first
     u.includes('showhd9.com') ||
@@ -2309,8 +2310,7 @@ async function playItem(item,serverIndex=0,displayTitle=''){
     isMpd||
     lower.includes('thaicdn')||
     lower.includes('mux.dev')||
-    lower.includes('byteark')||
-    lower.includes('b-cdn.net');
+    lower.includes('byteark');
   let candidates;
 
   const sourceIsTorbo=String(original||'').toLowerCase().includes('torbo007.com');
@@ -2364,6 +2364,7 @@ function playCandidate(candidates,item,serverIndex,idx){
   const sourceIs6395=is6395Url(direct);
   const sourceIs24=is24PlayerHdUrl(direct);
   const sourceIsMain24=isMain24PlayerHdUrl(direct);
+  const sourceIsBcdn=/b-cdn\.net/i.test(String(direct||''));
 
   const next=()=>{
     if(state._switchingCandidate)return;
@@ -2499,18 +2500,18 @@ function playCandidate(candidates,item,serverIndex,idx){
       enableWorker:sourceIsMain24 ? true : false,
       lowLatencyMode:false,
 
-      maxBufferLength:sourceIs6395?24:(mySeriesVod?60:((isProjectorWeakMode()||isProjectorMode())?38:(isUnstableLiveUrl(state.originalUrl)?28:35))),
-      maxMaxBufferLength:sourceIs6395?40:(mySeriesVod?120:((isProjectorWeakMode()||isProjectorMode())?65:(isUnstableLiveUrl(state.originalUrl)?50:60))),
-      backBufferLength:sourceIs6395?5:(mySeriesVod?30:((isProjectorWeakMode()||isProjectorMode())?6:12)),
-      maxBufferHole:sourceIs6395?1.2:(mySeriesVod?0.8:2.2),
+      maxBufferLength:sourceIsBcdn?120:(sourceIs6395?24:(mySeriesVod?60:((isProjectorWeakMode()||isProjectorMode())?38:(isUnstableLiveUrl(state.originalUrl)?28:35)))),
+      maxMaxBufferLength:sourceIsBcdn?240:(sourceIs6395?40:(mySeriesVod?120:((isProjectorWeakMode()||isProjectorMode())?65:(isUnstableLiveUrl(state.originalUrl)?50:60)))),
+      backBufferLength:sourceIsBcdn?45:(sourceIs6395?5:(mySeriesVod?30:((isProjectorWeakMode()||isProjectorMode())?6:12))),
+      maxBufferHole:sourceIsBcdn?0.5:(sourceIs6395?1.2:(mySeriesVod?0.8:2.2)),
       highBufferWatchdogPeriod:sourceIs6395?12:(mySeriesVod?12:8),
       nudgeOffset:0.18,
       nudgeMaxRetry:sourceIs6395?6:10,
 
-      fragLoadingTimeOut:sourceIs24?60000:(mySeriesVod?60000:45000),
+      fragLoadingTimeOut:sourceIsBcdn?60000:(sourceIs24?60000:(mySeriesVod?60000:45000)),
       manifestLoadingTimeOut:sourceIs24?60000:(mySeriesVod?45000:30000),
       levelLoadingTimeOut:sourceIs24?60000:(mySeriesVod?45000:30000),
-      fragLoadingMaxRetry:sourceIs6395?6:10,
+      fragLoadingMaxRetry:sourceIsBcdn?12:(sourceIs6395?6:10),
       manifestLoadingMaxRetry:sourceIs6395?4:6,
       levelLoadingMaxRetry:sourceIs6395?4:6,
       fragLoadingRetryDelay:1500,
@@ -2520,14 +2521,14 @@ function playCandidate(candidates,item,serverIndex,idx){
       startFragPrefetch:true,
       capLevelToPlayerSize:true,
       testBandwidth:sourceIsMain24 ? true : false,
-      abrEwmaDefaultEstimate:sourceIsMain24?300000:(mySeriesVod?650000:((isProjectorWeakMode()||isProjectorMode())?420000:1000000)),
+      abrEwmaDefaultEstimate:sourceIsBcdn?5000000:(sourceIsMain24?300000:(mySeriesVod?650000:((isProjectorWeakMode()||isProjectorMode())?420000:1000000))),
       abrBandWidthFactor:sourceIsMain24?0.72:(mySeriesVod?0.75:0.58),
       abrBandWidthUpFactor:sourceIsMain24?0.48:(mySeriesVod?0.45:0.25),
       liveSyncDurationCount:sourceIs6395?5:((isProjectorWeakMode()||isProjectorMode())?5:(isUnstableLiveUrl(state.originalUrl)?3:7)),
       liveMaxLatencyDurationCount:sourceIs6395?12:((isProjectorWeakMode()||isProjectorMode())?12:(isUnstableLiveUrl(state.originalUrl)?7:14)),
       progressive:true,
-      maxStarvationDelay:mySeriesVod?14:8,
-      maxLoadingDelay:mySeriesVod?14:8,
+      maxStarvationDelay:sourceIsBcdn?20:(mySeriesVod?14:8),
+      maxLoadingDelay:sourceIsBcdn?20:(mySeriesVod?14:8),
       liveDurationInfinity:false
     });
 
