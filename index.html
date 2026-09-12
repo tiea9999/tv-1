@@ -1732,6 +1732,7 @@ class Tiea24ChildDirectLoader extends Hls.DefaultConfig.loader{
   }
 }
 
+/* TIEA B-CDN DIRECT STABLE FIX 2026-09-12: b-cdn.net bypasses Worker to avoid periodic buffering */
 function shouldWorkerFirst(url){
   const u=String(url||'').toLowerCase();
   return (
@@ -2308,7 +2309,8 @@ async function playItem(item,serverIndex=0,displayTitle=''){
     isMpd||
     lower.includes('thaicdn')||
     lower.includes('mux.dev')||
-    lower.includes('byteark');
+    lower.includes('byteark')||
+    lower.includes('b-cdn.net');
   let candidates;
 
   const sourceIsTorbo=String(original||'').toLowerCase().includes('torbo007.com');
