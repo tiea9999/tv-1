@@ -1676,16 +1676,22 @@ function workerUrlFor(url){
       +'&referer='+encodeURIComponent('https://player77hdfree.xyz/');
   }
 
+  // B-CDN: ใช้ movie2 V1.1 เฉพาะ host นี้เท่านั้น
+  if(/(^|\.)b-cdn\.net$/i.test((()=>{try{return new URL(url).hostname}catch(e){return ''}})())){
+    return MOVIE2_PROXY+encodeURIComponent(url);
+  }
+
   // 24PlayerHD main: ใช้ IPTV Worker แบบ TEST PLAYER ที่ทดสอบแล้ว
   if(isMain24PlayerHdUrl(url)){
     const fixed24=normalize24PlayerUrl(url);
     return PROXY+encodeURIComponent(fixed24);
   }
 
-  // host 24HD อื่นยังคงเส้นทางเดิม
+  // movie2 ถูกสงวนให้ B-CDN เท่านั้น
+  // host 24HD/123HD อื่นคงใช้ IPTV Worker เดิม เพื่อไม่กระทบ 123 / SD / 5G
   if(is24PlayerHdUrl(url)){
     const fixed24=normalize24PlayerUrl(url);
-    return MOVIE2_PROXY+encodeURIComponent(fixed24);
+    return PROXY+encodeURIComponent(fixed24);
   }
 
   // Provider อื่นยังใช้ IPTV Worker เดิม
@@ -1732,7 +1738,6 @@ class Tiea24ChildDirectLoader extends Hls.DefaultConfig.loader{
   }
 }
 
-/* TIEA B-CDN WORKER BUFFER FIX 2026-09-12: GitHub Pages uses Worker for CORS + larger VOD buffer */
 function shouldWorkerFirst(url){
   const u=String(url||'').toLowerCase();
   return (
@@ -1741,6 +1746,8 @@ function shouldWorkerFirst(url){
     u.includes('main.24playerhd.com') ||
     u.includes('vdohls.com') ||
     u.includes('b-cdn.net') ||
+
+    // B-CDN ใช้ movie2 V1.1 เฉพาะ host เพื่อ rewrite m3u8 + Range/206
 
     // MySeries new hosts: must go through Worker first
     u.includes('showhd9.com') ||
@@ -2318,6 +2325,10 @@ async function playItem(item,serverIndex=0,displayTitle=''){
     // Torbo007 MUST stay inside Worker. Never fall back to direct URL because
     // torbo007 blocks browser-origin requests with 403/CORS.
     candidates=[workerUrlFor(original)];
+  }else if(/(^|\.)b-cdn\.net$/i.test((()=>{try{return new URL(String(original||'')).hostname}catch(e){return ''}})())){
+    // B-CDN: movie2 V1.1 is the only valid browser route.
+    // Never switch back to direct URL because GitHub Pages direct playback stalls.
+    candidates=[workerUrlFor(original)];
   }else if(is24PlayerHdUrl(original)){
     candidates=[workerUrlFor(original)];
   }else{
@@ -2364,7 +2375,7 @@ function playCandidate(candidates,item,serverIndex,idx){
   const sourceIs6395=is6395Url(direct);
   const sourceIs24=is24PlayerHdUrl(direct);
   const sourceIsMain24=isMain24PlayerHdUrl(direct);
-  const sourceIsBcdn=/b-cdn\.net/i.test(String(direct||''));
+  const sourceIsBcdn=/(^|\.)b-cdn\.net$/i.test((()=>{try{return new URL(String(direct||'')).hostname}catch(e){return ''}})());
 
   const next=()=>{
     if(state._switchingCandidate)return;
@@ -2497,23 +2508,23 @@ function playCandidate(candidates,item,serverIndex,idx){
 
     state.hls=new Hls({
       loader: sourceIsMain24 ? Hls.DefaultConfig.loader : (sourceIs24 ? Tiea24ChildDirectLoader : Hls.DefaultConfig.loader),
-      enableWorker:sourceIsMain24 ? true : false,
+      enableWorker:sourceIsBcdn ? true : (sourceIsMain24 ? true : false),
       lowLatencyMode:false,
 
-      maxBufferLength:sourceIsBcdn?120:(sourceIs6395?24:(mySeriesVod?60:((isProjectorWeakMode()||isProjectorMode())?38:(isUnstableLiveUrl(state.originalUrl)?28:35)))),
-      maxMaxBufferLength:sourceIsBcdn?240:(sourceIs6395?40:(mySeriesVod?120:((isProjectorWeakMode()||isProjectorMode())?65:(isUnstableLiveUrl(state.originalUrl)?50:60)))),
-      backBufferLength:sourceIsBcdn?45:(sourceIs6395?5:(mySeriesVod?30:((isProjectorWeakMode()||isProjectorMode())?6:12))),
-      maxBufferHole:sourceIsBcdn?0.5:(sourceIs6395?1.2:(mySeriesVod?0.8:2.2)),
+      maxBufferLength:sourceIsBcdn?90:(sourceIs6395?24:(mySeriesVod?60:((isProjectorWeakMode()||isProjectorMode())?38:(isUnstableLiveUrl(state.originalUrl)?28:35)))),
+      maxMaxBufferLength:sourceIsBcdn?180:(sourceIs6395?40:(mySeriesVod?120:((isProjectorWeakMode()||isProjectorMode())?65:(isUnstableLiveUrl(state.originalUrl)?50:60)))),
+      backBufferLength:sourceIsBcdn?30:(sourceIs6395?5:(mySeriesVod?30:((isProjectorWeakMode()||isProjectorMode())?6:12))),
+      maxBufferHole:sourceIsBcdn?0.8:(sourceIs6395?1.2:(mySeriesVod?0.8:2.2)),
       highBufferWatchdogPeriod:sourceIs6395?12:(mySeriesVod?12:8),
       nudgeOffset:0.18,
       nudgeMaxRetry:sourceIs6395?6:10,
 
-      fragLoadingTimeOut:sourceIsBcdn?60000:(sourceIs24?60000:(mySeriesVod?60000:45000)),
+      fragLoadingTimeOut:sourceIs24?60000:(mySeriesVod?60000:45000),
       manifestLoadingTimeOut:sourceIs24?60000:(mySeriesVod?45000:30000),
       levelLoadingTimeOut:sourceIs24?60000:(mySeriesVod?45000:30000),
-      fragLoadingMaxRetry:sourceIsBcdn?12:(sourceIs6395?6:10),
-      manifestLoadingMaxRetry:sourceIs6395?4:6,
-      levelLoadingMaxRetry:sourceIs6395?4:6,
+      fragLoadingMaxRetry:sourceIsBcdn?16:(sourceIs6395?6:10),
+      manifestLoadingMaxRetry:sourceIsBcdn?10:(sourceIs6395?4:6),
+      levelLoadingMaxRetry:sourceIsBcdn?10:(sourceIs6395?4:6),
       fragLoadingRetryDelay:1500,
       manifestLoadingRetryDelay:1500,
       levelLoadingRetryDelay:1500,
@@ -2521,14 +2532,14 @@ function playCandidate(candidates,item,serverIndex,idx){
       startFragPrefetch:true,
       capLevelToPlayerSize:true,
       testBandwidth:sourceIsMain24 ? true : false,
-      abrEwmaDefaultEstimate:sourceIsBcdn?5000000:(sourceIsMain24?300000:(mySeriesVod?650000:((isProjectorWeakMode()||isProjectorMode())?420000:1000000))),
+      abrEwmaDefaultEstimate:sourceIsMain24?300000:(mySeriesVod?650000:((isProjectorWeakMode()||isProjectorMode())?420000:1000000)),
       abrBandWidthFactor:sourceIsMain24?0.72:(mySeriesVod?0.75:0.58),
       abrBandWidthUpFactor:sourceIsMain24?0.48:(mySeriesVod?0.45:0.25),
       liveSyncDurationCount:sourceIs6395?5:((isProjectorWeakMode()||isProjectorMode())?5:(isUnstableLiveUrl(state.originalUrl)?3:7)),
       liveMaxLatencyDurationCount:sourceIs6395?12:((isProjectorWeakMode()||isProjectorMode())?12:(isUnstableLiveUrl(state.originalUrl)?7:14)),
       progressive:true,
-      maxStarvationDelay:sourceIsBcdn?20:(mySeriesVod?14:8),
-      maxLoadingDelay:sourceIsBcdn?20:(mySeriesVod?14:8),
+      maxStarvationDelay:mySeriesVod?14:8,
+      maxLoadingDelay:mySeriesVod?14:8,
       liveDurationInfinity:false
     });
 
@@ -2557,11 +2568,14 @@ function playCandidate(candidates,item,serverIndex,idx){
         const low=activeHls.levels[state._24LowLevel];
         setStatus('24PlayerHD • เริ่ม '+(low?.height||'ต่ำ')+'p ก่อน');
         console.log('[TIEA V4] 24HD START LOW',state._24LowLevel,'HIGH',state._24HighLevel);
-      }else{
+      }else if(!sourceIsBcdn){
         projectorPreferLowLevel();
         chooseProjectorSafeLevel();
       }
 
+      if(sourceIsBcdn){
+        setStatus('B-CDN • movie2 V1.1 • Range/206 • กำลังเล่น');
+      }
       startWatchdog();
       if(sourceIs24 && !isAndroidDevice()){
         if(!sourceIsMain24)setStatus('24PlayerHD • PC AUTO START');
@@ -2672,6 +2686,16 @@ function playCandidate(candidates,item,serverIndex,idx){
         // 6395 ไม่เปลี่ยน source/destroy ใน error แรก ๆ
         if(sourceIs6395 && state._hlsFatalCount<=5)return;
         if(sourceIs24 && state._hlsFatalCount<=3)return;
+      }
+
+      // B-CDN ต้องค้างอยู่บน movie2 V1.1 เท่านั้น ห้ามเด้งกลับ direct/server อื่น
+      if(sourceIsBcdn){
+        setStatus('B-CDN สะดุด • movie2 กำลังต่อ segment เดิม');
+        try{
+          activeHls.startLoad(Math.max(0,(video.currentTime||0)-0.5));
+          setTimeout(()=>video.play().catch(()=>{}),700);
+        }catch(err){}
+        return;
       }
 
       // เปลี่ยน candidate เมื่อพยายามซ่อมหลายครั้งแล้วเท่านั้น
@@ -4593,6 +4617,26 @@ console.log('TIEA V7.2 ALPHA 5.9.6 KEEP CURRENT LIST PAGE loaded');
 })();
 </script>
 
+<script>
+/* ================================================================
+   TIEA B-CDN MOVIE2 V1.1 ROUTE — 2026-09-12
+   - ONLY *.b-cdn.net -> movie2
+   - movie2 is NOT used by 123 / SD / 5G
+   - No B-CDN buffer hack; Worker V1.1 handles m3u8 rewrite + Range/206
+   ================================================================ */
+console.log('TIEA B-CDN movie2 V1.1 route loaded');
+</script>
+<script>
+/* ================================================================
+   TIEA B-CDN STICKY MOVIE2 V1.2 — 2026-09-12
+   - *.b-cdn.net uses movie2 V1.1 ONLY
+   - no direct fallback
+   - no server switching on HLS fatal
+   - dedicated VOD buffer/retry profile
+   - 123 / SD / 5G routes untouched
+   ================================================================ */
+console.log('TIEA B-CDN sticky movie2 V1.2 loaded');
+</script>
 </body>
 
 </html>
