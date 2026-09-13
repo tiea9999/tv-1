@@ -1114,15 +1114,17 @@ async function loadSourcePack(key){
     try{
       let arr=await loadUrl(s.source,s.title);
 
-      // TIEA MOVIE 2026 FIX:
-      // - remove stale "หนังใหม่ชนโรง" grouping from 2026 JSON items
-      // - newest appended JSON items appear first
+      // TIEA MOVIE 2026 FIX V2:
+      // - ใช้ลำดับใน JSON ตรง ๆ เหมือนหน้าแรก
+      // - รายการที่ผู้ใช้ใส่ไว้ต้นไฟล์ จะขึ้นต้นแถวทันที
+      // - ไม่ย้อนลำดับ และไม่ให้หลุดไป "หนังใหม่ชนโรง"
       if(key==='movie-main' && /หนังใหม่\s*2026/.test(String(s.title||''))){
         arr=(arr||[]).map(item=>({
           ...item,
           group:'หนังใหม่ 2026',
-          groups:['หนังใหม่ 2026']
-        })).reverse();
+          groups:['หนังใหม่ 2026'],
+          __tieaNew2026:true
+        }));
       }
 
       all.push(...arr);
@@ -1243,19 +1245,34 @@ function renderMoviePage(items,label='หนังทั้งหมด'){
 
   let hero=document.createElement('div');
   hero.className='hero';
-  hero.innerHTML='<div class="hero-title">🎬 หนังทั้งหมด</div><div class="hero-sub">รวมหนังทุกหมวดทุกปี • เลื่อนลงเพื่อดูแยกตามปี</div>';
+  hero.innerHTML='<div class="hero-title">🎬 หนังทั้งหมด</div><div class="hero-sub">หนังใหม่ 2026 อยู่บนสุดตามลำดับใน JSON • จากนั้นแยกตามปี</div>';
   content.appendChild(hero);
 
-  // แถวรวมทุกเรื่องก่อน
-  let allSec=document.createElement('div');
-  allSec.className='section';
-  allSec.innerHTML=`<div class="section-head"><div class="section-title">หนังทั้งหมด</div><div class="section-tools"><div class="badge">${items.length} รายการ</div><button class="see-all-btn">ดูทั้งหมด</button></div></div><div class="row"></div>`;
-  let allRow=allSec.querySelector('.row');
-  items.slice(0,18).forEach(item=>allRow.appendChild(createCard(item)));
-  allSec.querySelector('.see-all-btn').onclick=()=>openModal('หนังทั้งหมด',items);
-  content.appendChild(allSec);
+  // ===== หนังใหม่ 2026: ใช้ลำดับจาก JSON ตรง ๆ เหมือนหน้าแรก =====
+  // แสดง 30 เรื่องแรก เพื่อให้เรื่องที่เพิ่มไว้ต้นไฟล์ขึ้นต้นแถวทันที
+  const new2026All=items.filter(item=>{
+    if(item?.__tieaNew2026)return true;
+    const gs=[
+      item?.group,
+      ...(Array.isArray(item?.groups)?item.groups:[])
+    ].filter(Boolean).map(String);
+    return gs.some(g=>/หนังใหม่\s*2026/.test(g));
+  });
 
-  // แยกตามปี โดยปีใหม่อยู่บน
+  const new2026=new2026All.slice(0,30);
+
+  if(new2026.length){
+    let sec=document.createElement('div');
+    sec.className='section';
+    sec.innerHTML=`<div class="section-head"><div class="section-title">หนังใหม่ 2026</div><div class="section-tools"><div class="badge">${new2026.length} รายการ</div><button class="see-all-btn">ดูทั้งหมด</button></div></div><div class="row"></div>`;
+    let row=sec.querySelector('.row');
+    new2026.slice(0,18).forEach(item=>row.appendChild(createCard(item)));
+    sec.querySelector('.see-all-btn').onclick=()=>openModal('หนังใหม่ 2026',new2026All);
+    content.appendChild(sec);
+  }
+
+  // ===== แถวแยกตามปี =====
+  // ไม่เปลี่ยนลำดับในแต่ละปี เพื่อให้ 2026 เริ่มด้วยหนังใหม่ชุดเดียวกับหน้าแรก
   let yearMap={};
   items.forEach(item=>{
     let y=movieYearOf(item);
@@ -1280,7 +1297,11 @@ function renderMoviePage(items,label='หนังทั้งหมด'){
     content.appendChild(sec);
   });
 
-  state.rows=[{title:'หนังทั้งหมด',items},...years.map(y=>({title:y==='ไม่ระบุปี'?'หนังไม่ระบุปี':'หนังปี '+y,items:yearMap[y]}))];
+  state.rows=[
+    ...(new2026.length?[{title:'หนังใหม่ 2026',items:new2026All}]:[]),
+    ...years.map(y=>({title:y==='ไม่ระบุปี'?'หนังไม่ระบุปี':'หนังปี '+y,items:yearMap[y]}))
+  ];
+
   setStatus(items.length?'พร้อมใช้งาน • หนังทั้งหมด '+items.length+' รายการ':'ไม่พบรายการหนัง');
   setTimeout(()=>document.querySelector('.card,.menu-btn.active')?.focus(),100);
 }
@@ -5165,6 +5186,13 @@ window.TIEA_BCDN_V29={
 })();
 </script>
 
+
+<!-- TIEA MOVIE ORDER V3
+     หนังใหม่ 2026 = 30 รายการแรกตามลำดับ JSON
+     หนังปี 2026 / 2025 / ... = แยกปีตามเดิม
+     ไม่มี reverse
+     B-CDN V2.9 preserved
+-->
 </body>
 
 </html>
