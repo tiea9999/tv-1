@@ -407,12 +407,22 @@ async function loadAll(){
         const key=dedupeKey(item);
         if(seen.has(key)) continue;
         seen.add(key);
-        const groups=getItemGroups(item,s.name);
+        // ===== TIEA 037HD 2026 GROUP FIX =====
+        // ไฟล์หนังใหม่2026 ให้เข้าหมวดหนังใหม่2026 เท่านั้น
+        // ป้องกันค่า group เก่าใน JSON เช่น "หนังใหม่ชนโรง" สร้างแถวกลับมาอีก
+        const groups = (s.name==='หนังใหม่2026')
+          ? ['หนังใหม่2026']
+          : getItemGroups(item,s.name);
+
         const t=getUpdatedTime(item);
         if(t>0) latest.push({...item,__updatedTime:t});
+
         for(const g of groups){
           if(!groupMap[g]){groupMap[g]=[]; if(!groupOrder.includes(g)) groupOrder.push(g);}
-          groupMap[g].push(item);
+
+          // หนังใหม่2026: รายการที่เพิ่มท้าย JSON ให้ขึ้นต้นแถวอัตโนมัติ
+          if(g==='หนังใหม่2026') groupMap[g].unshift(item);
+          else groupMap[g].push(item);
         }
       }
     }catch(e){
@@ -425,13 +435,17 @@ async function loadAll(){
 
   const rows=[];
   // ===== TIEA 037HD CATEGORY PRIORITY =====
-  // บังคับให้ หนังใหม่2026 แสดงก่อน หนังใหม่ชนโรง เสมอ
-  const priorityGroups=['หนังใหม่2026','หนังใหม่ชนโรง'];
+  // ใช้หนังใหม่2026 เป็นแถวแรก และไม่สร้างแถวหนังใหม่ชนโรง
+  const priorityGroups=['หนังใหม่2026'];
   priorityGroups.forEach(g=>{
     const i=groupOrder.indexOf(g);
     if(i>=0) groupOrder.splice(i,1);
   });
   groupOrder.unshift(...priorityGroups);
+
+  // กันข้อมูลเก่า/แคชที่ยังมีชื่อหนังใหม่ชนโรง
+  delete groupMap['หนังใหม่ชนโรง'];
+  delete store['หนังใหม่ชนโรง'];
 
   if(latest.length){
     latest.sort((a,b)=>(b.__updatedTime||0)-(a.__updatedTime||0));
