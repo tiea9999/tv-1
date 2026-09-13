@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
     <title>TIEA IPTV HOME V7.2 ALPHA 5.9.6 — KEEP CURRENT LIST PAGE</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+    <script>window.TIEA_HLS_1517=window.Hls;</script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
     <style>
@@ -1826,13 +1828,25 @@ function dropProjectorQuality(){
 function softRecoverPlayback(){
   try{
     forceFullSound();
-    if(state.hls){
+    const _tieaBcdn=/(^|\.)b-cdn\.net$/i.test((()=>{try{return new URL(String(state.originalUrl||'')).hostname}catch(e){return ''}})());
+    // B-CDN V1.3: ห้าม startLoad() จาก recovery ทั่วไป เพราะทำให้ VOD ย้อน/เริ่มใหม่
+    if(state.hls && !_tieaBcdn){
       try{state.hls.startLoad(Math.max(0,(video.currentTime||0)-0.5));}catch(e){}
     }
     if(video.paused && video.readyState>=2){
       video.play().catch(()=>{});
     }
   }catch(e){}
+}
+
+
+function isActiveBcdnPlayback(){
+  try{
+    const direct=state.originalUrl||'';
+    return /(^|\.)b-cdn\.net$/i.test(new URL(String(direct)).hostname);
+  }catch(e){
+    return false;
+  }
 }
 
 function setupProjectorVideoRecovery(){
@@ -1842,6 +1856,8 @@ function setupProjectorVideoRecovery(){
   ['stalled','waiting','suspend','emptied'].forEach(ev=>{
     video.addEventListener(ev,()=>{
       if(!playerPanel.classList.contains('show'))return;
+      // V1.6: B-CDN owns its own Hls.js lifecycle. Never enter projector/generic recovery.
+      if(isActiveBcdnPlayback())return;
       setStatus('โปรเจคเตอร์บัฟเฟอร์ • กำลังต่อภาพต่อเสียง');
       setTimeout(softRecoverPlayback,900);
       setTimeout(softRecoverPlayback,2500);
@@ -1852,6 +1868,8 @@ function setupProjectorVideoRecovery(){
 
   video.addEventListener('pause',()=>{
     if(!playerPanel.classList.contains('show'))return;
+    // V1.6: do not let the global auto-resume loop interfere with B-CDN.
+    if(isActiveBcdnPlayback())return;
     setTimeout(()=>{
       if(playerPanel.classList.contains('show') && video.paused && video.readyState>=2){
         video.play().catch(()=>{});
@@ -2015,6 +2033,13 @@ function reloadSameHlsSource(){
 }
 
 function startWatchdog(){
+  // V1.6: B-CDN is isolated from the legacy 3-second watchdog.
+  // Hls.js built-in retry is the only recovery path for this provider.
+  if(isActiveBcdnPlayback()){
+    stopWatchdog();
+    return;
+  }
+
   stopWatchdog();
 
   state.lastTime=video.currentTime||0;
@@ -2027,6 +2052,10 @@ function startWatchdog(){
 
   state.watchdog=setInterval(()=>{
     if(!playerPanel.classList.contains('show'))return;
+    if(isActiveBcdnPlayback()){
+      stopWatchdog();
+      return;
+    }
 
     forceFullSound();
 
@@ -2235,6 +2264,106 @@ function routeTorboSupportedPage(item,serverIndex,original,title){
   return true;
 }
 
+
+async function prepareBcdnCleanSwitch(){
+  // V1.5: hard reset ONLY for B-CDN when changing titles.
+  // Do not touch routing/settings for 123 / SD / 5G.
+  try{
+    stopWatchdog();
+
+    if(state.playTimer){
+      clearTimeout(state.playTimer);
+      state.playTimer=null;
+    }
+    if(state._24UnlockTimer){
+      clearTimeout(state._24UnlockTimer);
+      state._24UnlockTimer=null;
+    }
+
+    if(state.hls){
+      const oldHls=state.hls;
+      state.hls=null;
+      try{oldHls.stopLoad()}catch(e){}
+      try{oldHls.detachMedia()}catch(e){}
+      try{oldHls.destroy()}catch(e){}
+    }
+
+    if(state.dash){
+      const oldDash=state.dash;
+      state.dash=null;
+      try{oldDash.destroy()}catch(e){}
+    }
+
+    try{video.pause()}catch(e){}
+    try{video.removeAttribute('src')}catch(e){}
+    try{video.src=''}catch(e){}
+    try{video.load()}catch(e){}
+
+    state._hlsFatalCount=0;
+    state._networkRecoverAt=0;
+    state._mediaRecoverAt=0;
+    state._bcdnFatalRecoverAt=0;
+    state._bcdnFixedLevel=-1;
+    state._switchingCandidate=false;
+    state.lastTime=0;
+    state.stuckCount=0;
+    state.recoverCount=0;
+    state.lastRecoverAt=0;
+
+    // Remove only the managed B-CDN playback listeners from a previous title.
+    if(state._bcdnPlaybackHandler){
+      for(const ev of ['playing','loadeddata','canplay','timeupdate']){
+        try{video.removeEventListener(ev,state._bcdnPlaybackHandler)}catch(e){}
+      }
+      state._bcdnPlaybackHandler=null;
+    }
+
+    // Give Chromium/WebView one task turn to release the old MediaSource.
+    await new Promise(r=>setTimeout(r,180));
+  }catch(e){}
+}
+
+
+function tieaExtractBcdnUrl(value){
+  // V2.4: recognize B-CDN even when wrapped one or more times by Worker URLs.
+  let cur=String(value||'').trim();
+  if(!cur)return '';
+
+  for(let n=0;n<6;n++){
+    try{
+      const u=new URL(cur);
+      if(/(^|\.)b-cdn\.net$/i.test(u.hostname))return u.href;
+
+      // Common worker/query wrappers.
+      for(const key of ['url','src','stream','target']){
+        const inner=u.searchParams.get(key);
+        if(inner){
+          let v=inner;
+          try{v=decodeURIComponent(v)}catch(e){}
+          if(v && v!==cur){
+            const hit=tieaExtractBcdnUrl(v);
+            if(hit)return hit;
+          }
+        }
+      }
+    }catch(e){}
+
+    let dec=cur;
+    try{dec=decodeURIComponent(cur)}catch(e){}
+    if(dec===cur)break;
+    cur=dec;
+  }
+
+  // Last safety net for encoded/raw strings containing a B-CDN URL.
+  try{
+    const dec=decodeURIComponent(String(value||''));
+    const m=dec.match(/https?:\/\/[^"'\\s]+b-cdn\.net\/[^"'\\s&]+/i);
+    if(m)return m[0];
+  }catch(e){}
+
+  return '';
+}
+
 async function playItem(item,serverIndex=0,displayTitle=''){
   if(!displayTitle)state.returnEpisodeItem=null;
 
@@ -2247,6 +2376,17 @@ async function playItem(item,serverIndex=0,displayTitle=''){
   }
 
   const title=displayTitle||item.title||'กำลังเล่น';
+
+  // V2.4: if the JSON already contains B-CDN directly OR wrapped by a Worker,
+  // go to the standalone Hls.js 1.5.17 player before any legacy player path.
+  const rawBcdn=tieaExtractBcdnUrl(original);
+  if(rawBcdn){
+    state.originalUrl=rawBcdn;
+    state.currentUrl=rawBcdn;
+    state.currentTitle=title;
+    openBcdnExternalPlayer(rawBcdn,title);
+    return;
+  }
 
   // Torbo007: ใช้หน้าต้นทางที่ถูกเก็บใน JSON เพื่อให้ต้นทางสร้าง session/fingerprint เอง
   // ต้องทำก่อน Dynamic Resolver / Worker
@@ -2262,6 +2402,53 @@ async function playItem(item,serverIndex=0,displayTitle=''){
       return;
     }
     // Desktop main.24playerhd.com เดินต่อเข้า Hls.js Stable Adaptive V4
+  }
+
+  /* TIEA B-CDN V2.9 — FINAL OLD-PLAYER GATE
+     This is the exact gate immediately before the legacy player panel opens. */
+  try{
+    let _gateBcdn='';
+    const _gateUrls=[];
+
+    const _pushGate=v=>{if(v)_gateUrls.push(String(v))};
+    _pushGate(original);
+    _pushGate(item?.url); _pushGate(item?.link); _pushGate(item?.stream); _pushGate(item?.file);
+    (item?.servers||[]).forEach(s=>{
+      _pushGate(s?.url); _pushGate(s?.link); _pushGate(s?.stream); _pushGate(s?.file);
+    });
+
+    for(const _u of _gateUrls){
+      if(typeof tieaExtractBcdnUrl==='function'){
+        _gateBcdn=tieaExtractBcdnUrl(_u)||'';
+      }else if(/b-cdn\.net/i.test(_u)){
+        _gateBcdn=_u;
+      }
+      if(_gateBcdn)break;
+    }
+
+    if(_gateBcdn){
+      const _scroll=Math.max(0,Math.round(content?.scrollTop||0));
+      const _source=String(state?.activeSource||'series-short');
+      const _ret=location.href.split('#')[0]
+        +'#tiea-bcdn='+encodeURIComponent(_source||'series-short')
+        +'&scroll='+encodeURIComponent(_scroll);
+
+      try{
+        sessionStorage.setItem('tiea_bcdn_return',JSON.stringify({
+          source:_source||'series-short',
+          scroll:_scroll,
+          title:title||item?.title||'B-CDN',
+          at:Date.now()
+        }));
+      }catch(e){}
+
+      location.href='./bcdn-player.html?url='+encodeURIComponent(_gateBcdn)
+        +'&title='+encodeURIComponent(title||item?.title||'B-CDN')
+        +'&return='+encodeURIComponent(_ret);
+      return;
+    }
+  }catch(e){
+    console.warn('TIEA B-CDN V2.9 old-player gate error',e);
   }
 
   cleanupPlayer();
@@ -2309,6 +2496,15 @@ async function playItem(item,serverIndex=0,displayTitle=''){
       return;
     }
     // Resolver คืน main.24playerhd.com: Desktop ใช้ Stable Adaptive V4 ต่อ
+  }
+
+  const resolvedBcdn=tieaExtractBcdnUrl(original);
+  if(resolvedBcdn){
+    state.originalUrl=resolvedBcdn;
+    state.currentUrl=resolvedBcdn;
+    state.currentTitle=title;
+    openBcdnExternalPlayer(resolvedBcdn,title);
+    return;
   }
 
   let lower=original.toLowerCase();
@@ -2369,13 +2565,60 @@ function start24PcAutoplay(){
   }catch(e){}
 }
 
+
+function openBcdnExternalPlayer(originalUrl,title){
+  // V2.1: persist exact TIEA category before leaving.
+  let source='home';
+  let scroll=0;
+  try{
+    source=String(state?.activeSource||'home');
+    // B-CDN currently belongs to short-drama flow; if state is ambiguous,
+    // keep the visible active sidebar category instead of falling back to HOME.
+    const activeBtn=document.querySelector('.menu-btn.active[data-source]');
+    if((!source || source==='home') && activeBtn?.dataset?.source){
+      source=String(activeBtn.dataset.source);
+    }
+    // B-CDN is used by the short-drama flow in this build.
+    // If the current state was lost for any reason, never fall back to HOME.
+    if(!source || source==='home'){
+      source='series-short';
+    }
+    scroll=Math.max(0,Math.round(content?.scrollTop||window.scrollY||0));
+    sessionStorage.setItem('tiea_bcdn_return',JSON.stringify({
+      source,scroll,title:title||'',at:Date.now()
+    }));
+  }catch(e){}
+
+  try{ cleanupPlayer(false); }catch(e){}
+
+  const base=location.href.split('#')[0];
+  const ret=base+'#tiea-bcdn='+encodeURIComponent(source)
+    +'&scroll='+encodeURIComponent(scroll);
+
+  const target='./bcdn-player.html?url='+encodeURIComponent(originalUrl)+
+               '&title='+encodeURIComponent(title||'B-CDN')+
+               '&return='+encodeURIComponent(ret);
+  location.href=target;
+}
+
 function playCandidate(candidates,item,serverIndex,idx){
   let url=candidates[idx]||candidates[0];
   const direct=getUrl(item,serverIndex);
   const sourceIs6395=is6395Url(direct);
   const sourceIs24=is24PlayerHdUrl(direct);
   const sourceIsMain24=isMain24PlayerHdUrl(direct);
-  const sourceIsBcdn=/(^|\.)b-cdn\.net$/i.test((()=>{try{return new URL(String(direct||'')).hostname}catch(e){return ''}})());
+  const bcdnDirect=tieaExtractBcdnUrl(direct);
+  const bcdnCandidate=tieaExtractBcdnUrl(url);
+  const detectedBcdn=bcdnDirect||bcdnCandidate;
+  const sourceIsBcdn=!!detectedBcdn;
+  // V1.7: B-CDN uses the pinned engine proven by CLEAN TEST.
+  // Every other provider keeps the existing @latest engine.
+  const HlsEngine=(sourceIsBcdn && window.TIEA_HLS_1517) ? window.TIEA_HLS_1517 : window.Hls;
+
+  if(sourceIsBcdn){
+    openBcdnExternalPlayer(detectedBcdn,state.currentTitle||item?.title||'B-CDN');
+    return;
+  }
 
   const next=()=>{
     if(state._switchingCandidate)return;
@@ -2412,12 +2655,27 @@ function playCandidate(candidates,item,serverIndex,idx){
   state._24HighErrorCount=0;
   state._24HighBlacklisted=false;
 
+  /* TIEA B-CDN V2.9 — playCandidate final gate */
+  if(sourceIsBcdn && detectedBcdn){
+    try{
+      openBcdnExternalPlayer(detectedBcdn,state.currentTitle||item?.title||'B-CDN');
+    }catch(e){
+      const _t=state.currentTitle||item?.title||'B-CDN';
+      location.href='./bcdn-player.html?url='+encodeURIComponent(detectedBcdn)
+        +'&title='+encodeURIComponent(_t);
+    }
+    return;
+  }
+
   playerPanel.classList.add('show');
   showPlayerUI();
   if(sourceIs24 && !isAndroidDevice()){
     // 24HD PC: do not force audible state before the first play() call.
     // Audible autoplay can be blocked by Brave/Chrome.
     try{video.muted=true;video.defaultMuted=true;video.volume=0}catch(e){}
+  }else if(sourceIsBcdn){
+    // CLEAN TEST behavior: prepare audio state only; do not call play() yet.
+    try{video.muted=false;video.defaultMuted=false;video.volume=1}catch(e){}
   }else{
     forceFullSound();
   }
@@ -2452,12 +2710,15 @@ function playCandidate(candidates,item,serverIndex,idx){
   },sourceIs24?30000:(sourceIs6395?20000:18000));
 
   
-  ['playing','loadeddata','canplay','timeupdate'].forEach(ev=>video.addEventListener(ev,()=>{
+  const playbackSignalHandler=()=>{
     if(hasRealPlayback()){
       if(state.playTimer){clearTimeout(state.playTimer);state.playTimer=null}
       state.stuckCount=0;
       state._hlsFatalCount=0;
       if(sourceIs24 && !isAndroidDevice()){
+        try{video.muted=false;video.defaultMuted=false;video.volume=1}catch(e){}
+      }else if(sourceIsBcdn){
+        // Set audio state only; do not call video.play() on every timeupdate.
         try{video.muted=false;video.defaultMuted=false;video.volume=1}catch(e){}
       }else{
         forceFullSound();
@@ -2480,7 +2741,23 @@ function playCandidate(candidates,item,serverIndex,idx){
         },18000);
       }
     }
-  },{once:false}));
+  };
+
+  if(sourceIsBcdn){
+    if(state._bcdnPlaybackHandler){
+      for(const ev of ['playing','loadeddata','canplay','timeupdate']){
+        try{video.removeEventListener(ev,state._bcdnPlaybackHandler)}catch(e){}
+      }
+    }
+    state._bcdnPlaybackHandler=playbackSignalHandler;
+    for(const ev of ['playing','loadeddata','canplay','timeupdate']){
+      video.addEventListener(ev,playbackSignalHandler,{once:false});
+    }
+  }else{
+    ['playing','loadeddata','canplay','timeupdate'].forEach(ev=>
+      video.addEventListener(ev,playbackSignalHandler,{once:false})
+    );
+  }
 
   const lower=url.toLowerCase();
 
@@ -2503,18 +2780,29 @@ function playCandidate(candidates,item,serverIndex,idx){
     lower.includes('extension=m3u8') ||
     decodeURIComponent(lower).includes('.m3u8');
 
-  if(Hls.isSupported() && looksHls){
+  if(HlsEngine.isSupported() && looksHls){
+    const lateBcdn=tieaExtractBcdnUrl(url)||tieaExtractBcdnUrl(state.originalUrl);
+    if(lateBcdn){
+      openBcdnExternalPlayer(lateBcdn,state.currentTitle||item?.title||'B-CDN');
+      return;
+    }
     const mySeriesVod=isMySeriesVodUrl(state.originalUrl||url);
 
-    state.hls=new Hls({
-      loader: sourceIsMain24 ? Hls.DefaultConfig.loader : (sourceIs24 ? Tiea24ChildDirectLoader : Hls.DefaultConfig.loader),
+    if(sourceIsBcdn){
+      stopWatchdog();
+      clearTimeout(state._projectorDropTimer);
+      state._projectorDropTimer=null;
+    }
+
+    state.hls=new HlsEngine({
+      loader: sourceIsMain24 ? HlsEngine.DefaultConfig.loader : (sourceIs24 ? Tiea24ChildDirectLoader : HlsEngine.DefaultConfig.loader),
       enableWorker:sourceIsBcdn ? true : (sourceIsMain24 ? true : false),
       lowLatencyMode:false,
 
-      maxBufferLength:sourceIsBcdn?90:(sourceIs6395?24:(mySeriesVod?60:((isProjectorWeakMode()||isProjectorMode())?38:(isUnstableLiveUrl(state.originalUrl)?28:35)))),
-      maxMaxBufferLength:sourceIsBcdn?180:(sourceIs6395?40:(mySeriesVod?120:((isProjectorWeakMode()||isProjectorMode())?65:(isUnstableLiveUrl(state.originalUrl)?50:60)))),
-      backBufferLength:sourceIsBcdn?30:(sourceIs6395?5:(mySeriesVod?30:((isProjectorWeakMode()||isProjectorMode())?6:12))),
-      maxBufferHole:sourceIsBcdn?0.8:(sourceIs6395?1.2:(mySeriesVod?0.8:2.2)),
+      maxBufferLength:sourceIsBcdn?30:(sourceIs6395?24:(mySeriesVod?60:((isProjectorWeakMode()||isProjectorMode())?38:(isUnstableLiveUrl(state.originalUrl)?28:35)))),
+      maxMaxBufferLength:sourceIsBcdn?60:(sourceIs6395?40:(mySeriesVod?120:((isProjectorWeakMode()||isProjectorMode())?65:(isUnstableLiveUrl(state.originalUrl)?50:60)))),
+      backBufferLength:sourceIsBcdn?15:(sourceIs6395?5:(mySeriesVod?30:((isProjectorWeakMode()||isProjectorMode())?6:12))),
+      maxBufferHole:sourceIsBcdn?0.5:(sourceIs6395?1.2:(mySeriesVod?0.8:2.2)),
       highBufferWatchdogPeriod:sourceIs6395?12:(mySeriesVod?12:8),
       nudgeOffset:0.18,
       nudgeMaxRetry:sourceIs6395?6:10,
@@ -2522,24 +2810,24 @@ function playCandidate(candidates,item,serverIndex,idx){
       fragLoadingTimeOut:sourceIs24?60000:(mySeriesVod?60000:45000),
       manifestLoadingTimeOut:sourceIs24?60000:(mySeriesVod?45000:30000),
       levelLoadingTimeOut:sourceIs24?60000:(mySeriesVod?45000:30000),
-      fragLoadingMaxRetry:sourceIsBcdn?16:(sourceIs6395?6:10),
-      manifestLoadingMaxRetry:sourceIsBcdn?10:(sourceIs6395?4:6),
-      levelLoadingMaxRetry:sourceIsBcdn?10:(sourceIs6395?4:6),
+      fragLoadingMaxRetry:sourceIsBcdn?8:(sourceIs6395?6:10),
+      manifestLoadingMaxRetry:sourceIsBcdn?6:(sourceIs6395?4:6),
+      levelLoadingMaxRetry:sourceIsBcdn?6:(sourceIs6395?4:6),
       fragLoadingRetryDelay:1500,
       manifestLoadingRetryDelay:1500,
       levelLoadingRetryDelay:1500,
 
-      startFragPrefetch:true,
-      capLevelToPlayerSize:true,
+      startFragPrefetch:sourceIsBcdn?false:true,
+      capLevelToPlayerSize:sourceIsBcdn?false:true,
       testBandwidth:sourceIsMain24 ? true : false,
       abrEwmaDefaultEstimate:sourceIsMain24?300000:(mySeriesVod?650000:((isProjectorWeakMode()||isProjectorMode())?420000:1000000)),
       abrBandWidthFactor:sourceIsMain24?0.72:(mySeriesVod?0.75:0.58),
       abrBandWidthUpFactor:sourceIsMain24?0.48:(mySeriesVod?0.45:0.25),
       liveSyncDurationCount:sourceIs6395?5:((isProjectorWeakMode()||isProjectorMode())?5:(isUnstableLiveUrl(state.originalUrl)?3:7)),
       liveMaxLatencyDurationCount:sourceIs6395?12:((isProjectorWeakMode()||isProjectorMode())?12:(isUnstableLiveUrl(state.originalUrl)?7:14)),
-      progressive:true,
-      maxStarvationDelay:mySeriesVod?14:8,
-      maxLoadingDelay:mySeriesVod?14:8,
+      progressive:sourceIsBcdn?false:true,
+      maxStarvationDelay:sourceIsBcdn?60:(mySeriesVod?14:8),
+      maxLoadingDelay:sourceIsBcdn?60:(mySeriesVod?14:8),
       liveDurationInfinity:false
     });
 
@@ -2547,7 +2835,7 @@ function playCandidate(candidates,item,serverIndex,idx){
     activeHls.attachMedia(video);
     activeHls.loadSource(url);
 
-    activeHls.on(Hls.Events.MANIFEST_PARSED,()=>{
+    activeHls.on(HlsEngine.Events.MANIFEST_PARSED,()=>{
       if(state.hls!==activeHls)return;
 
       if(sourceIsMain24 && Array.isArray(activeHls.levels) && activeHls.levels.length){
@@ -2574,19 +2862,57 @@ function playCandidate(candidates,item,serverIndex,idx){
       }
 
       if(sourceIsBcdn){
-        setStatus('B-CDN • movie2 V1.1 • Range/206 • กำลังเล่น');
+        // V1.4: lock one stable rendition (prefer highest <=720p) to stop ABR
+        // emergency-abort/cancel loops seen on B-CDN .dts segments.
+        try{
+          const levels=Array.isArray(activeHls.levels)?activeHls.levels:[];
+          if(levels.length){
+            let pick=-1;
+            let bestH=-1, bestB=-1;
+            levels.forEach((lv,i)=>{
+              const h=Number(lv.height||0), b=Number(lv.bitrate||0);
+              if(h>0 && h<=720){
+                if(h>bestH || (h===bestH && b>bestB)){ pick=i; bestH=h; bestB=b; }
+              }
+            });
+            if(pick<0){
+              pick=levels.map((lv,i)=>({i,h:Number(lv.height||0)||99999,b:Number(lv.bitrate||0)||0}))
+                         .sort((a,b)=>a.h-b.h || a.b-b.b)[0].i;
+            }
+            state._bcdnFixedLevel=pick;
+            activeHls.autoLevelCapping=pick;
+            activeHls.startLevel=pick;
+            activeHls.currentLevel=pick;
+            activeHls.nextLevel=pick;
+            activeHls.loadLevel=pick;
+            const lv=levels[pick]||{};
+            setStatus('B-CDN • Hls.js 1.5.17 • FIXED '+(lv.height?lv.height+'p':'LEVEL '+pick)+' • movie2 V1.1');
+          }else{
+            setStatus('B-CDN • Hls.js 1.5.17 • FIXED MODE • movie2 V1.1');
+          }
+        }catch(e){
+          setStatus('B-CDN • Hls.js 1.5.17 • FIXED MODE • movie2 V1.1');
+        }
       }
-      startWatchdog();
+      if(!sourceIsBcdn){
+        startWatchdog();
+      }else{
+        // V1.6 isolated mode: no legacy watchdog/recovery timers for B-CDN.
+        stopWatchdog();
+      }
       if(sourceIs24 && !isAndroidDevice()){
         if(!sourceIsMain24)setStatus('24PlayerHD • PC AUTO START');
         start24PcAutoplay();
+      }else if(sourceIsBcdn){
+        try{video.muted=false;video.defaultMuted=false;video.volume=1}catch(e){}
+        video.play().catch(()=>{});
       }else{
         forceFullSound();
         video.play().catch(()=>{});
       }
     });
 
-    activeHls.on(Hls.Events.BUFFER_STALLED,()=>{
+    activeHls.on(HlsEngine.Events.BUFFER_STALLED,()=>{
       if(state.hls!==activeHls)return;
 
       if(sourceIs6395){
@@ -2600,6 +2926,11 @@ function playCandidate(candidates,item,serverIndex,idx){
         return;
       }
 
+      if(sourceIsBcdn){
+        setStatus('B-CDN • Hls.js 1.5.17 • กำลังเติมบัฟเฟอร์');
+        return;
+      }
+
       if(mySeriesVod){
         setStatus('MySeries กำลังเติมบัฟเฟอร์ • ไม่รีโหลดถี่');
         setTimeout(softRecoverPlayback,1200);
@@ -2609,11 +2940,26 @@ function playCandidate(candidates,item,serverIndex,idx){
       softRecoverPlayback();
     });
 
-    activeHls.on(Hls.Events.LEVEL_LOADED,()=>{if(state.hls===activeHls)forceFullSound()});
-    activeHls.on(Hls.Events.FRAG_BUFFERED,()=>{if(state.hls===activeHls)forceFullSound()});
+    activeHls.on(HlsEngine.Events.LEVEL_LOADED,()=>{
+      if(state.hls!==activeHls)return;
+      if(!sourceIsBcdn)forceFullSound();
+    });
+    activeHls.on(HlsEngine.Events.FRAG_BUFFERED,()=>{
+      if(state.hls!==activeHls)return;
+      if(!sourceIsBcdn)forceFullSound();
+    });
 
-    activeHls.on(Hls.Events.ERROR,(e,d)=>{
+    activeHls.on(HlsEngine.Events.ERROR,(e,d)=>{
       if(!d || state.hls!==activeHls)return;
+
+      if(sourceIsBcdn){
+        const detail=String(d.details||'');
+        const fatal=d.fatal?' • fatal':'';
+        setStatus('B-CDN • Hls.js 1.5.17 • '+detail+fatal);
+        // Same policy as the successful CLEAN TEST:
+        // no manual startLoad, recoverMediaError, fallback, or server switching.
+        return;
+      }
 
       const now=Date.now();
 
@@ -2654,17 +3000,22 @@ function playCandidate(candidates,item,serverIndex,idx){
       }
 
       if(!d.fatal){
-        if(d.type===Hls.ErrorTypes.NETWORK_ERROR && now-(state._networkRecoverAt||0)>10000){
+        if(d.type===HlsEngine.ErrorTypes.NETWORK_ERROR && now-(state._networkRecoverAt||0)>10000){
           state._networkRecoverAt=now;
-          try{activeHls.startLoad(Math.max(0,(video.currentTime||0)-0.5))}catch(err){}
-          setTimeout(()=>video.play().catch(()=>{}),600);
+          if(sourceIsBcdn){
+            setStatus('B-CDN segment สะดุด • FIXED LEVEL • รอ retry เดิม');
+            setTimeout(()=>video.play().catch(()=>{}),600);
+          }else{
+            try{activeHls.startLoad(Math.max(0,(video.currentTime||0)-0.5))}catch(err){}
+            setTimeout(()=>video.play().catch(()=>{}),600);
+          }
         }
         return;
       }
 
       state._hlsFatalCount=(state._hlsFatalCount||0)+1;
 
-      if(d.type===Hls.ErrorTypes.MEDIA_ERROR){
+      if(d.type===HlsEngine.ErrorTypes.MEDIA_ERROR){
         if(now-(state._mediaRecoverAt||0)>12000){
           state._mediaRecoverAt=now;
           setStatus(sourceIs6395?'6395 media สะดุด • ซ่อมโดยไม่ปิดแอป':'media สะดุด • กำลังซ่อม');
@@ -2676,7 +3027,29 @@ function playCandidate(candidates,item,serverIndex,idx){
         }
       }
 
-      if(d.type===Hls.ErrorTypes.NETWORK_ERROR){
+      if(sourceIsBcdn && d.type===HlsEngine.ErrorTypes.NETWORK_ERROR){
+        if(now-(state._bcdnFatalRecoverAt||0)>15000){
+          state._bcdnFatalRecoverAt=now;
+          const keepAt=Math.max(0,video.currentTime||0);
+          setStatus('B-CDN network สะดุด • FIXED LEVEL • รอ segment');
+          video.play().catch(()=>{});
+          setTimeout(()=>{
+            if(state.hls!==activeHls)return;
+            const moved=(video.currentTime||0)>keepAt+0.25;
+            if(moved)return;
+            try{
+              activeHls.startLoad(keepAt);
+              setTimeout(()=>{
+                try{ if(keepAt>2 && (video.currentTime||0)<keepAt-1) video.currentTime=keepAt; }catch(e){}
+                video.play().catch(()=>{});
+              },800);
+            }catch(e){}
+          },2500);
+        }
+        return;
+      }
+
+      if(d.type===HlsEngine.ErrorTypes.NETWORK_ERROR){
         setStatus(sourceIs6395?'6395 network สะดุด • ต่อใหม่โดยไม่เด้ง':'network สะดุด • กำลังต่อใหม่');
         try{
           activeHls.startLoad(Math.max(0,(video.currentTime||0)-1));
@@ -2688,13 +3061,10 @@ function playCandidate(candidates,item,serverIndex,idx){
         if(sourceIs24 && state._hlsFatalCount<=3)return;
       }
 
-      // B-CDN ต้องค้างอยู่บน movie2 V1.1 เท่านั้น ห้ามเด้งกลับ direct/server อื่น
+      // B-CDN V1.3: ค้างบน movie2 เท่านั้น และไม่สั่ง startLoad ซ้ำใน fatal อื่น
       if(sourceIsBcdn){
-        setStatus('B-CDN สะดุด • movie2 กำลังต่อ segment เดิม');
-        try{
-          activeHls.startLoad(Math.max(0,(video.currentTime||0)-0.5));
-          setTimeout(()=>video.play().catch(()=>{}),700);
-        }catch(err){}
+        setStatus('B-CDN สะดุด • คงเวลาเดิมและรอ Hls.js ซ่อม');
+        setTimeout(()=>video.play().catch(()=>{}),700);
         return;
       }
 
@@ -3660,7 +4030,7 @@ async function v585Restore(){
     const m=h.match(/tiea-v585=([^&]+)/);
     if(!m) return;
 
-    const source=decodeURIComponent(m[1]||'home');
+    let source=decodeURIComponent(m[1]||'home');
     const sm=h.match(/scroll=([^&]+)/);
     const scroll=sm?Number(decodeURIComponent(sm[1]))||0:0;
 
@@ -3674,9 +4044,15 @@ async function v585Restore(){
 
     // Reopen the exact source/category first.
     if(source && source!=='home' && typeof loadMenuSource==='function'){
-      await loadMenuSource(source);
-    }else if(typeof renderHome==='function'){
-      renderHome();
+      try{
+        await loadMenuSource(source);
+      }catch(e){
+        source='series-short';
+        await loadMenuSource('series-short');
+      }
+    }else if(typeof loadMenuSource==='function'){
+      source='series-short';
+      await loadMenuSource('series-short');
     }else if(typeof loadHome==='function'){
       await loadHome();
     }
@@ -4637,6 +5013,225 @@ console.log('TIEA B-CDN movie2 V1.1 route loaded');
    ================================================================ */
 console.log('TIEA B-CDN sticky movie2 V1.2 loaded');
 </script>
+
+
+<script>
+/* ================================================================
+   TIEA B-CDN V2.1 EXACT CATEGORY RETURN
+   - return URL carries #tiea-bcdn=<source>
+   - restore source with loadMenuSource()
+   - restore sidebar active state + list scroll
+   ================================================================ */
+(function(){
+'use strict';
+
+async function tieaBcdnRestore(){
+  try{
+    const h=location.hash||'';
+    const m=h.match(/tiea-bcdn=([^&]+)/);
+    if(!m)return;
+
+    const source=decodeURIComponent(m[1]||'home');
+    const sm=h.match(/scroll=([^&]+)/);
+    let scroll=sm?Number(decodeURIComponent(sm[1]))||0:0;
+
+    if(!source || source==='home'){
+      source='series-short';
+    }
+
+    try{
+      const raw=sessionStorage.getItem('tiea_bcdn_return');
+      if(raw){
+        const saved=JSON.parse(raw);
+        if(saved && saved.source) {
+          if(!source || source==='home') source=String(saved.source);
+          if(!scroll) scroll=Number(saved.scroll)||0;
+        }
+      }
+    }catch(e){}
+
+    // Remove marker only after we have captured the return state.
+    try{history.replaceState(null,'',location.href.split('#')[0])}catch(e){}
+
+    // Restore exact category/list.
+    if(source && source!=='home' && typeof loadMenuSource==='function'){
+      await loadMenuSource(source);
+    }else if(typeof renderHome==='function'){
+      renderHome();
+    }
+
+    // Restore active sidebar highlight.
+    try{
+      document.querySelectorAll('.menu-btn').forEach(b=>b.classList.remove('active'));
+      const btn=document.querySelector('.menu-btn[data-source="'+CSS.escape(source)+'"]');
+      if(btn) btn.classList.add('active');
+      else document.querySelector('.menu-btn[data-action="home"]')?.classList.add('active');
+    }catch(e){}
+
+    setTimeout(()=>{
+      try{ if(content) content.scrollTop=scroll; }catch(e){}
+      try{ sessionStorage.removeItem('tiea_bcdn_return'); }catch(e){}
+    },850);
+  }catch(e){
+    console.warn('B-CDN V2.1 restore error',e);
+  }
+}
+
+window.addEventListener('pageshow',()=>setTimeout(tieaBcdnRestore,120));
+window.TIEA_BCDN_RETURN_V21={version:'2.1',exactCategory:true};
+})();
+</script>
+
+
+<script>
+/* TIEA B-CDN V2.9 — OLD PLAYER PANEL FAILSAFE */
+(function(){
+'use strict';
+if(window.__TIEA_BCDN_V29_FAILSAFE__)return;
+window.__TIEA_BCDN_V29_FAILSAFE__=true;
+
+const panel=document.getElementById('playerPanel');
+if(!panel)return;
+
+let redirecting=false;
+
+function extract(v){
+  try{
+    if(typeof tieaExtractBcdnUrl==='function')return tieaExtractBcdnUrl(v)||'';
+  }catch(e){}
+  return /b-cdn\.net/i.test(String(v||''))?String(v||''):'';
+}
+
+function check(){
+  if(redirecting || !panel.classList.contains('show'))return;
+
+  const vals=[
+    state?.originalUrl,
+    state?.currentUrl,
+    video?.currentSrc,
+    video?.src
+  ];
+
+  let hit='';
+  for(const v of vals){
+    hit=extract(v);
+    if(hit)break;
+  }
+  if(!hit)return;
+
+  redirecting=true;
+  try{
+    cleanupPlayer?.();
+  }catch(e){}
+
+  const title=state?.currentTitle||document.getElementById('playerTitle')?.textContent||'B-CDN';
+  if(typeof openBcdnExternalPlayer==='function'){
+    openBcdnExternalPlayer(hit,title);
+  }else{
+    location.href='./bcdn-player.html?url='+encodeURIComponent(hit)+'&title='+encodeURIComponent(title);
+  }
+}
+
+new MutationObserver(check).observe(panel,{attributes:true,attributeFilter:['class']});
+setInterval(check,500);
+
+window.TIEA_BCDN_V29={
+  version:'2.9',
+  gate:'before legacy playerPanel.show + playCandidate + visible-panel failsafe'
+};
+})();
+</script>
+
 </body>
 
 </html>
+<!-- TIEA B-CDN PLAYER V1.3 NO-RESTART
+     - use movie2 Worker V1.1 (no edge cache)
+     - no startLoad on B-CDN buffer stalled/nonfatal network
+     - fatal network resumes from exact currentTime with cooldown
+     - never switches B-CDN to direct/other server
+     - 123/SD/5G unchanged
+-->
+
+<!-- TIEA B-CDN PLAYER V1.4 FIXED LEVEL
+     - movie2 Worker V1.1
+     - B-CDN ABR locked to one stable rendition (prefer <=720p)
+     - capLevelToPlayerSize OFF for B-CDN
+     - startFragPrefetch OFF for B-CDN
+     - progressive OFF for B-CDN
+     - starvation/loading emergency abort thresholds relaxed
+     - no direct fallback; 123/SD/5G unchanged
+-->
+
+<!-- TIEA B-CDN PLAYER V1.5 CLEAN SWITCH
+     BASE: V1.4 FIXED LEVEL + movie2 Worker V1.1
+     - hard-destroy previous B-CDN Hls/MediaSource before a new title
+     - pause + clear src + video.load() ONLY for B-CDN title changes
+     - reset B-CDN recovery/fixed-level state before new title
+     - managed B-CDN playback listeners; old B-CDN listeners removed on switch
+     - keeps V1.4 fixed rendition behavior
+     - 123 / SD / 5G routing unchanged
+-->
+
+<!-- TIEA B-CDN PLAYER V1.6 ISOLATED ENGINE
+     BASE: V1.5 CLEAN SWITCH + V1.4 FIXED LEVEL
+     WORKER: movie2 V1.1 unchanged
+     B-CDN ONLY:
+       - legacy 3-second watchdog disabled completely
+       - projector stalled/waiting/suspend/emptied recovery bypassed
+       - global pause auto-resume bypassed
+       - no forceFullSound()/video.play() spam on LEVEL_LOADED, FRAG_BUFFERED, timeupdate
+       - fixed-level B-CDN Hls.js path retained
+       - clean-switch retained
+     123 / SD / 5G and other providers unchanged
+-->
+
+<!-- TIEA B-CDN PLAYER V1.7 HLS 1.5.17 STABLE TEST
+     - B-CDN only: pinned Hls.js 1.5.17
+     - all other providers: existing hls.js@latest unchanged
+     - movie2 Worker V1.1 unchanged
+     - retains B-CDN fixed level <=720p
+     - retains B-CDN isolated watchdog/projector-recovery bypass
+     - B-CDN HLS errors use native Hls.js 1.5.17 behavior only
+       (no manual startLoad / recoverMediaError / direct fallback)
+     - 123 / SD / 5G routing and engine unchanged
+-->
+
+<!-- TIEA B-CDN V1.9 EXTERNAL STABLE PLAYER
+     - B-CDN opens ./bcdn-player.html
+     - standalone page uses Hls.js 1.5.17 + movie2 Worker V1.1
+     - close/back buttons are always part of the B-CDN page itself
+     - return URL preserves the current TIEA page/list position in browser history
+     - no srcdoc iframe / no main TIEA video overlap
+     - 123 / SD / 5G and other providers remain on original engine
+-->
+
+<!-- TIEA B-CDN V2.0 SAME CATEGORY RETURN
+     Close/Back uses browser history first so the current category/list DOM is preserved.
+     Scroll position is restored as a fallback.
+-->
+
+<!-- TIEA B-CDN V2.1 EXACT CATEGORY RETURN
+     Saves state.activeSource before external player.
+     Close/Back returns with #tiea-bcdn=<source>, then reloads that exact category.
+-->
+
+<!-- TIEA B-CDN V2.2 RETURN BUGFIX
+     FIX: V2.1 declared restore source as const although fallback code reassigned it.
+     This could throw and leave the already-rendered HOME page visible.
+     V2.2 uses let and guarantees B-CDN fallback returns to series-short, never HOME.
+-->
+
+<!-- TIEA B-CDN V2.3 ALWAYS EXTERNAL ROUTE
+     Root cause fixed:
+     playItem previously converted B-CDN to movie2 before playCandidate detection.
+     Therefore sourceIsBcdn could become false and the old main player was used.
+     V2.3 routes resolved b-cdn.net directly to bcdn-player.html BEFORE worker conversion.
+     playCandidate also recognizes/unwraps movie2 ?url=b-cdn as a safety net.
+-->
+
+<!-- TIEA B-CDN V2.4 DEEP DETECT
+     Detects B-CDN direct URLs and nested Worker URLs recursively:
+     raw item -> resolved URL -> playCandidate direct -> current candidate -> final HLS guard.
+     Any detected B-CDN is forced to ./bcdn-player.html.
+-->
