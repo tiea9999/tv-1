@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
+<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
@@ -60,7 +60,7 @@
 <body>
 
     <div class="back-home" onclick="goHome()">⬅ กลับหน้าหลัก</div>
-    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80</h2>
+    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3</h2>
 
     <div id="player-container">
         <div class="player-controls">
@@ -748,6 +748,16 @@ function tieaLogoUrl(url){
 
 const MOVIEPROXY_BASE = "https://movieproxy.tawatchai250958.workers.dev";
 
+// V2.4H3 TICKET STABLE: one signed ticket per channel session.
+// Reuse the same signed /watch URL until it is close to expiry.
+const movieProxyTicketCache = new Map();
+let movieProxySessionId = "";
+
+function clearMovieProxyTicketSession(){
+  movieProxyTicketCache.clear();
+  movieProxySessionId = "";
+}
+
 function isMovieProxyWatch(url){
   try{
     const u = new URL(String(url || ""));
@@ -758,19 +768,33 @@ function isMovieProxyWatch(url){
 async function getMovieProxyTicketUrl(url){
   if(!isMovieProxyWatch(url)) return url;
   const src = new URL(url);
-  const id = src.searchParams.get("id");
+  const id = (src.searchParams.get("id") || "").trim();
+  const now = Math.floor(Date.now()/1000);
+  const cached = movieProxyTicketCache.get(id);
+  if(cached && cached.url && cached.exp > now + 45){
+    addPlaybackLog("TICKET", "ใช้ Ticket เดิม • " + id);
+    return cached.url;
+  }
+
   const ticketUrl = MOVIEPROXY_BASE + "/ticket?id=" + encodeURIComponent(id);
   const res = await fetch(ticketUrl, {method:"GET", cache:"no-store"});
   if(!res.ok) throw new Error("TICKET HTTP " + res.status);
   const raw = await res.text();
-  let signed = "";
+  let signed = "", exp = 0;
   try{
     const data = JSON.parse(raw);
     signed = data.url || data.watch || data.signedUrl || data.signed_url || data.playUrl || data.play_url || "";
+    exp = Number(data.expires || data.exp || 0) || 0;
   }catch(e){
     signed = raw.trim();
   }
   if(!signed || !/^https?:\/\//i.test(signed)) throw new Error("TICKET URL INVALID");
+  if(!exp){
+    try{ exp = Number(new URL(signed).searchParams.get("exp") || 0) || 0; }catch(e){}
+  }
+  if(!exp) exp = now + 540;
+  movieProxyTicketCache.set(id, {url:signed, exp});
+  addPlaybackLog("TICKET", "ออก Ticket ใหม่ • " + id);
   return signed;
 }
 
@@ -951,6 +975,11 @@ function openPlusServerDirect(url){
 }
 
 async function loadChannel(channel, element){
+  const nextSessionId = String(channel?.file || channel?.name || "");
+  if(movieProxySessionId !== nextSessionId){
+    clearMovieProxyTicketSession();
+    movieProxySessionId = nextSessionId;
+  }
   activeOriginalChannel = channel;
   activeServerIndex = 0;
   serverFailureCount = 0;
@@ -1116,11 +1145,11 @@ function useHLS_STABLE(url){
       autoStartLoad: true,
       startFragPrefetch: true,
       backBufferLength: 30,
-      maxBufferLength: 20,
-      maxMaxBufferLength: 40,
-      fragLoadingMaxRetry: 4,
-      manifestLoadingMaxRetry: 3,
-      levelLoadingMaxRetry: 3
+      maxBufferLength: 45,
+      maxMaxBufferLength: 90,
+      fragLoadingMaxRetry: 8,
+      manifestLoadingMaxRetry: 5,
+      levelLoadingMaxRetry: 5
     });
 
     currentHls.attachMedia(video);
