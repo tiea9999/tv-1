@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
+<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
@@ -584,7 +584,8 @@ async function switchToNextServer(reason){
   currentServerName =
     activeOriginalChannel.servers?.[activeServerIndex]?.name ||
     ("Backup " + activeServerIndex);
-  activeUrl = proxyUrl(next.file);
+  try{ activeUrl = proxyUrl(await resolvePlaybackUrl(next.file)); }
+  catch(e){ return false; }
   audioOnlyRetryDone = false;
   selectedSafeLevel = -1;
 
@@ -745,6 +746,44 @@ function tieaLogoUrl(url){
   return url||"";
 }
 
+const MOVIEPROXY_BASE = "https://movieproxy.tawatchai250958.workers.dev";
+
+function isMovieProxyWatch(url){
+  try{
+    const u = new URL(String(url || ""));
+    return u.origin === MOVIEPROXY_BASE && u.pathname === "/watch" && !!u.searchParams.get("id");
+  }catch(e){ return false; }
+}
+
+async function getMovieProxyTicketUrl(url){
+  if(!isMovieProxyWatch(url)) return url;
+  const src = new URL(url);
+  const id = src.searchParams.get("id");
+  const ticketUrl = MOVIEPROXY_BASE + "/ticket?id=" + encodeURIComponent(id);
+  const res = await fetch(ticketUrl, {method:"GET", cache:"no-store"});
+  if(!res.ok) throw new Error("TICKET HTTP " + res.status);
+  const raw = await res.text();
+  let signed = "";
+  try{
+    const data = JSON.parse(raw);
+    signed = data.url || data.watch || data.signedUrl || data.signed_url || data.playUrl || data.play_url || "";
+  }catch(e){
+    signed = raw.trim();
+  }
+  if(!signed || !/^https?:\/\//i.test(signed)) throw new Error("TICKET URL INVALID");
+  return signed;
+}
+
+async function resolvePlaybackUrl(url){
+  try{
+    return await getMovieProxyTicketUrl(url);
+  }catch(e){
+    addPlaybackLog("TICKET", "ขอ Ticket ไม่สำเร็จ • " + (e?.message || e));
+    setStatus("ขอสิทธิ์เล่นจาก Worker ไม่สำเร็จ", false);
+    throw e;
+  }
+}
+
 function proxyUrl(url){
   // ลิงก์ workers.dev เล่นตรง ห้าม proxy ซ้อน
   return url;
@@ -772,9 +811,10 @@ function forceAudio100(){
   applyBalancedVolume(activeUrl);
 }
 
-function openExternal(url){
-  url = url || activeUrl || (activeChannel ? activeChannel.file : "");
+async function openExternal(url){
+  url = url || (activeChannel ? activeChannel.file : "") || activeUrl;
   if(!url) return;
+  try{ url = await resolvePlaybackUrl(url); activeUrl = url; }catch(e){ return; }
   try{
     const u = new URL(url);
     const scheme = u.protocol.replace(":","");
@@ -789,9 +829,10 @@ function openExternal(url){
   }
 }
 
-function openMX(url){
-  url = url || activeUrl || (activeChannel ? activeChannel.file : "");
+async function openMX(url){
+  url = url || (activeChannel ? activeChannel.file : "") || activeUrl;
   if(!url) return;
+  try{ url = await resolvePlaybackUrl(url); activeUrl = url; }catch(e){ return; }
   try{
     const u = new URL(url);
     const scheme = u.protocol.replace(":","");
@@ -937,7 +978,9 @@ async function loadChannel(channel, element){
   forceShowControls();
   await stopAllPlayers();
 
-  const url = proxyUrl(resolvedChannel.file);
+  let url;
+  try{ url = proxyUrl(await resolvePlaybackUrl(resolvedChannel.file)); }
+  catch(e){ return; }
   activeUrl = url;
   addPlaybackLog("OPEN", "เริ่มเปิด " + currentServerName + " • " + url);
 
@@ -1148,7 +1191,8 @@ async function restartCurrent(){
   if(!resolved || !resolved.file) return;
 
   activeChannel = lab14ApplyExistingMatch(resolved);
-  activeUrl = proxyUrl(activeChannel.file);
+  try{ activeUrl = proxyUrl(await resolvePlaybackUrl(activeChannel.file)); }
+  catch(e){ return; }
   audioOnlyRetryDone = false;
   selectedSafeLevel = -1;
   await stopAllPlayers();
