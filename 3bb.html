@@ -1352,6 +1352,9 @@ document.addEventListener("keydown",function(e){
 let currentCategory = "ดิจิตอล";
 function renderCategory(group){
   currentCategory=group;
+  // P5.2: remember selected category continuously.
+  // This does not touch the native-player launch path.
+  try{ sessionStorage.setItem("tiea3bb_selected_group", group || "ดิจิตอล"); }catch(e){}
   document.querySelectorAll(".category-btn").forEach(btn=>btn.classList.toggle("active",btn.dataset.group===group));
   document.getElementById("category-title").textContent="หมวด: "+group;
   const listContainer=document.getElementById("channel-list");
@@ -1386,7 +1389,14 @@ document.addEventListener("DOMContentLoaded",function(){
   setupForceAutoHide();
   const safeBtn=document.getElementById("safeModeBtn"); if(safeBtn) safeBtn.textContent="📽 SAFE ON";
   setupCategoryMenu();
-  renderCategory("ดิจิตอล");
+  let startGroup="ดิจิตอล";
+  try{
+    const saved=sessionStorage.getItem("tiea3bb_selected_group");
+    if(saved==="ดิจิตอล"||saved==="หนัง"||saved==="กีฬา"||saved==="การ์ตูน"||saved==="ทั้งหมด"){
+      startGroup=saved;
+    }
+  }catch(e){}
+  renderCategory(startGroup);
   startFastWarmup();
 });
     </script>
@@ -1394,7 +1404,12 @@ document.addEventListener("DOMContentLoaded",function(){
 
 <script>
 window.addEventListener("pageshow", function(){
-  restore3BBState();
+  // P5.2: category is restored during DOMContentLoaded.
+  // Here restore only the old list position; do not click category buttons.
+  try{
+    const y=Number(sessionStorage.getItem("tiea3bb_return_scroll")||"0");
+    setTimeout(()=>window.scrollTo(0,y),250);
+  }catch(e){}
 });
 </script>
 
