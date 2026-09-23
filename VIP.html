@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>TIEA IPTV  PLAYER AUTO HIDE 5S</title>
+    <title>TIEA IPTV PLAYER AUTO HIDE 5S — KEEP CURRENT PAGE</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         * {
@@ -467,7 +467,32 @@ function openExternal(){const item=currentList[currentIndex];const url=(item&&it
 async function copyCurrentLink(){const item=currentList[currentIndex];const url=(item&&item.url)||currentUrl;if(!url)return;try{await navigator.clipboard.writeText(url);alert('คัดลอกลิงก์ Main แล้ว')}catch(e){prompt('คัดลอกลิงก์ Main',url)}}
 function backToListOrGrid(){if(allView.active)renderAllPage();else backToGrid()}
 function backToGrid(){overlay.style.display='none';overlay.innerHTML='';grid.style.display='block';allView={active:false,name:'',page:1};setTimeout(()=>lastFocus?.focus?.(),100)}
-function goHome(){cleanupPlayers();player.style.display='none';overlay.style.display='none';overlay.innerHTML='';grid.style.display='block';currentList=[];currentIndex=0;window.scrollTo({top:0,behavior:'smooth'});setTimeout(()=>lastFocus?.focus?.(),100)}
+function goHome(){
+  cleanupPlayers();
+  player.style.display='none';
+  currentList=[];
+  currentIndex=0;
+
+  // ===== KEEP CURRENT LIST PAGE =====
+  // ถ้าเปิดหนังมาจาก "ดูทั้งหมด" ให้กลับหน้าหมวด/เลขหน้าเดิม
+  // เช่น เปิดจากหน้า 20 -> กด X/หยุด -> กลับหน้า 20
+  if(allView.active){
+    renderAllPage();
+    setTimeout(()=>lastFocus?.focus?.(),120);
+    return;
+  }
+
+  // ถ้าเปิดจากหน้าแถวหลัก ให้กลับตำแหน่งเดิม ไม่เด้งขึ้นบนสุด
+  overlay.style.display='none';
+  overlay.innerHTML='';
+  grid.style.display='block';
+  setTimeout(()=>{
+    try{
+      lastFocus?.focus?.();
+      lastFocus?.scrollIntoView?.({block:'nearest',inline:'nearest'});
+    }catch(e){}
+  },120);
+}
 function seekVideoBy(sec){
   try{
     if(!video || video.style.display==='none')return;
