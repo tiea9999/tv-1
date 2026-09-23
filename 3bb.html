@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.3-FAST-REMOTE: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
+<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.4-LONG-WATCH-RETURN: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
@@ -68,7 +68,7 @@
 <body>
 
     <div class="back-home" onclick="goHome()">⬅ กลับหน้าหลัก</div>
-    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • P5.3 FAST REMOTE</h2>
+    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • P5.4 LONG-WATCH RETURN</h2>
 
     <div id="player-container">
         <div class="player-controls">
@@ -833,6 +833,11 @@ function isAndroidNativeTarget(){
 function launchAndroidNativePlayer(url){
   if(!url) return;
   remember3BBState();
+      // P5.4: durable state for long external-player sessions
+      try{
+        localStorage.setItem("tiea3bb_last_group", currentCategory || "ดิจิตอล");
+        localStorage.setItem("tiea3bb_last_scroll", String(window.scrollY || 0));
+      }catch(e){}
   try{
     const u = new URL(url);
     const scheme = u.protocol.replace(":", "");
@@ -1360,6 +1365,8 @@ document.addEventListener("keydown",function(e){
 let currentCategory = "ดิจิตอล";
 function renderCategory(group){
   currentCategory=group;
+  // P5.4 LONG-WATCH RETURN: persist category even if Android kills/reloads this page.
+  try{ localStorage.setItem("tiea3bb_last_group", group || "ดิจิตอล"); }catch(e){}
   // P5.2: remember selected category continuously.
   // This does not touch the native-player launch path.
   try{ sessionStorage.setItem("tiea3bb_selected_group", group || "ดิจิตอล"); }catch(e){}
@@ -1399,6 +1406,12 @@ document.addEventListener("DOMContentLoaded",function(){
   const safeBtn=document.getElementById("safeModeBtn"); if(safeBtn) safeBtn.textContent="📽 SAFE ON";
   setupCategoryMenu();
   let startGroup="ดิจิตอล";
+  try{
+    const durableGroup=localStorage.getItem("tiea3bb_last_group");
+    if(durableGroup==="ดิจิตอล"||durableGroup==="หนัง"||durableGroup==="กีฬา"||durableGroup==="การ์ตูน"||durableGroup==="ทั้งหมด"){
+      startGroup=durableGroup;
+    }
+  }catch(e){}
   try{
     const saved=sessionStorage.getItem("tiea3bb_selected_group");
     if(saved==="ดิจิตอล"||saved==="หนัง"||saved==="กีฬา"||saved==="การ์ตูน"||saved==="ทั้งหมด"){
@@ -1513,6 +1526,24 @@ setInterval(function(){
 },60000);
 
 console.log("TIEA PROJECTOR LOW MEMORY 2407 loaded");
+})();
+</script>
+
+
+<script id="tiea-p54-long-watch-return">
+(function(){
+  function restoreLongWatchPosition(){
+    try{
+      const g=localStorage.getItem("tiea3bb_last_group");
+      const valid=["ดิจิตอล","หนัง","กีฬา","การ์ตูน","ทั้งหมด"];
+      if(g && valid.includes(g) && typeof renderCategory==="function" && currentCategory!==g){
+        renderCategory(g);
+      }
+      const y=Number(localStorage.getItem("tiea3bb_last_scroll")||"0");
+      if(y>0) setTimeout(function(){ window.scrollTo(0,y); },300);
+    }catch(e){}
+  }
+  window.addEventListener("pageshow", restoreLongWatchPosition);
 })();
 </script>
 
