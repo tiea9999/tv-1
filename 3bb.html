@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
+<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5-NATIVE: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
@@ -60,7 +60,7 @@
 <body>
 
     <div class="back-home" onclick="goHome()">⬅ กลับหน้าหลัก</div>
-    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3</h2>
+    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • ANDROID MOVIEPROXY NATIVE P5</h2>
 
     <div id="player-container">
         <div class="player-controls">
@@ -813,6 +813,32 @@ function proxyUrl(url){
   return url;
 }
 
+// P5: Android / Android TV / Projector + movieproxy => device/native player.
+// PC and all non-movieproxy sources keep the existing internal player path.
+function isAndroidNativeTarget(){
+  const ua = String(navigator.userAgent || "").toLowerCase();
+  return ua.includes("android") || ua.includes("android tv") ||
+         ua.includes("projector") || ua.includes("xgimi") ||
+         ua.includes("mibox") || ua.includes("bravia") || ua.includes("aft");
+}
+
+function launchAndroidNativePlayer(url){
+  if(!url) return;
+  remember3BBState();
+  try{
+    const u = new URL(url);
+    const scheme = u.protocol.replace(":", "");
+    const hostPath = u.host + u.pathname + (u.search || "");
+    const intent = "intent://" + hostPath +
+      "#Intent;scheme=" + scheme +
+      ";action=android.intent.action.VIEW;type=video/*;S.browser_fallback_url=" +
+      encodeURIComponent(url) + ";end";
+    window.location.href = intent;
+  }catch(e){
+    window.location.href = url;
+  }
+}
+
 const FAST_WARM_URLS = [
   "https://iptv.tawatchai250958.workers.dev/?url=http://tiea1.3bbddns.com:28470/0.m3u8"
 ];
@@ -1002,6 +1028,20 @@ async function loadChannel(channel, element){
 
   document.querySelectorAll(".channel").forEach(ch=>ch.classList.remove("active"));
   if(element) element.classList.add("active");
+
+  // P5: movieproxy on Android uses a fresh signed H4 ticket, then hands it to
+  // the device player. Back returns to this same category/list position.
+  if(isAndroidNativeTarget() && isMovieProxyWatch(resolvedChannel.file)){
+    remember3BBState();
+    let nativeUrl;
+    try{
+      nativeUrl = await resolvePlaybackUrl(resolvedChannel.file);
+      activeUrl = nativeUrl;
+    }catch(e){ return; }
+    addPlaybackLog("NATIVE", "Android movieproxy → Player เครื่อง • " + resolvedChannel.name);
+    launchAndroidNativePlayer(nativeUrl);
+    return;
+  }
 
   document.getElementById("player-container").style.display = "block";
   forceShowControls();
