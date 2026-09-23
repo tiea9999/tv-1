@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5-NATIVE: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
+<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.3-FAST-REMOTE: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
@@ -55,12 +55,20 @@
 }
 </style>
 
+
+<style id="tiea-fast-remote-p53">
+@media (pointer:coarse), (hover:none){
+  .channel{transition:none!important}
+  .channel:hover{box-shadow:none}
+}
+</style>
+
 </head>
 
 <body>
 
     <div class="back-home" onclick="goHome()">⬅ กลับหน้าหลัก</div>
-    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • ANDROID MOVIEPROXY NATIVE P5</h2>
+    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • P5.3 FAST REMOTE</h2>
 
     <div id="player-container">
         <div class="player-controls">
@@ -1366,8 +1374,9 @@ function renderCategory(group){
     div.tabIndex=0;
     div.innerHTML=`<img src="${tieaLogoUrl(ch.logo)}" loading="lazy" onerror="this.onerror=null;this.src='${ch.logo}'"><span>${ch.name}</span>`;
     div.onclick=()=>loadChannel(ch,div);
-    div.onfocus=()=>warmStream(firstChannelUrl(ch));
-    div.onmouseenter=()=>warmStream(firstChannelUrl(ch));
+    // FAST REMOTE P5.3: ห้ามยิง network warm-up ตอนรีโมทเลื่อน focus
+    // เมาส์ PC ยัง warm ได้แบบเดิม
+    div.onmouseenter=()=>{ if(!isAndroidNativeTarget()) warmStream(firstChannelUrl(ch)); };
     div.onkeydown=e=>{if(e.key==="Enter"||e.key==="OK"||e.key===" "){e.preventDefault();loadChannel(ch,div);}};
     listContainer.appendChild(div);
   });
@@ -1397,7 +1406,8 @@ document.addEventListener("DOMContentLoaded",function(){
     }
   }catch(e){}
   renderCategory(startGroup);
-  startFastWarmup();
+  // FAST REMOTE P5.3: projector/Android ไม่ยิง warm-up ตอนเปิดหน้า
+  if(!isAndroidNativeTarget()) startFastWarmup();
 });
     </script>
 
