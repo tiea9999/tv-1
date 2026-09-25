@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.4-LONG-WATCH-RETURN: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
+<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.5-MFIXER-SMART-RECOVERY: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
@@ -178,7 +178,7 @@ const channels = [
 {name:"REAL MADRID TV M-FIXER",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20250814102145019502.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=realmadridtv",drm:false,group:"กีฬา"},
 {name:"mutv",logo:"https://beta.m-fixer.net/uploads/tv_image/mutv.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmutv%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
 {name:"MUTV M-FIXER",logo:"https://beta.m-fixer.net/uploads/tv_image/mutv.jpg",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=mutv",drm:false,group:"กีฬา"},
-{name:"lfctv",logo:"https://beta.m-fixer.net/uploads/tv_image/lfc-t6czf365s21e.jpg",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=lfctv",drm:false,group:"กีฬา"},    
+{name:"lfctv",logo:"https://beta.m-fixer.net/uploads/tv_image/lfc-t6czf365s21e.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Flfctv%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
 {name:"W-SPORT M-FIXER",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20250717135007006041.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=wsport",drm:false,group:"กีฬา"},
     
     
@@ -393,6 +393,73 @@ const channels = [
 let currentHls = null;
 let shakaPlayer = null;
 let hlsWatchdog = null;
+
+// P5.5 M-FIXER SMART RECOVERY — scoped ONLY to edge-1.m-fixer.net
+let mfixerLastFragAt = 0;
+let mfixerLastVideoProgressAt = 0;
+let mfixerLastVideoTime = 0;
+let mfixerReconnects = 0;
+let mfixerReconnecting = false;
+let mfixerLastReconnectAt = 0;
+
+function isMfixerDirectUrl(url){
+  try{
+    const u = new URL(String(url || ""));
+    return u.hostname.toLowerCase() === "edge-1.m-fixer.net" && u.port === "8092";
+  }catch(e){ return false; }
+}
+
+function decodeBase64UrlUtf8(value){
+  try{
+    let s = String(value || "").replace(/-/g, "+").replace(/_/g, "/");
+    while(s.length % 4) s += "=";
+    const bin = atob(s);
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }catch(e){ return ""; }
+}
+
+async function resolveMfixerDirectIfEligible(url){
+  if(!isMovieProxyWatch(url)) return "";
+  try{
+    const u = new URL(url);
+    const id = (u.searchParams.get("id") || "").trim();
+    if(!id) return "";
+    const res = await fetch(MOVIEPROXY_BASE + "/resolve-direct?id=" + encodeURIComponent(id), {
+      method:"GET", cache:"no-store"
+    });
+    if(!res.ok) return "";
+    const data = await res.json();
+    if(!data || !data.ok || !data.stream) return "";
+    const direct = decodeBase64UrlUtf8(data.stream);
+    return isMfixerDirectUrl(direct) ? direct : "";
+  }catch(e){
+    return "";
+  }
+}
+
+function resetMfixerSmartState(){
+  mfixerLastFragAt = 0;
+  mfixerLastVideoProgressAt = 0;
+  mfixerLastVideoTime = 0;
+  mfixerReconnecting = false;
+  mfixerLastReconnectAt = 0;
+}
+
+function mfixerSmartReconnect(url, reason){
+  if(!isMfixerDirectUrl(url) || mfixerReconnecting) return;
+  const now = Date.now();
+  if(mfixerLastReconnectAt && now - mfixerLastReconnectAt < 3500) return;
+  mfixerLastReconnectAt = now;
+  mfixerReconnecting = true;
+  mfixerReconnects++;
+  addPlaybackLog("M-FIXER", "SMART RECONNECT #" + mfixerReconnects + " • " + reason);
+  setStatus("M-Fixer กำลังกู้ภาพอัตโนมัติ ครั้งที่ " + mfixerReconnects, true);
+  setTimeout(()=>{
+    mfixerReconnecting = false;
+    useHLS_STABLE(url);
+  }, 1500);
+}
 let activeChannel = null;
 let activeOriginalChannel = null;
 let activeElement = null;
@@ -918,6 +985,7 @@ async function stopAllPlayers(){
     clearInterval(hlsWatchdog);
     hlsWatchdog = null;
   }
+  resetMfixerSmartState();
 
   if(currentHls){
     try{ currentHls.destroy(); }catch(e){}
@@ -1042,9 +1110,15 @@ async function loadChannel(channel, element){
   document.querySelectorAll(".channel").forEach(ch=>ch.classList.remove("active"));
   if(element) element.classList.add("active");
 
-  // P5: movieproxy on Android uses a fresh signed H4 ticket, then hands it to
-  // the device player. Back returns to this same category/list position.
-  if(isAndroidNativeTarget() && isMovieProxyWatch(resolvedChannel.file)){
+  // P5.5: detect M-Fixer privately through /resolve-direct.
+  // ONLY edge-1.m-fixer.net stays in TIEA HLS.js and gets V0.6 Smart Recovery.
+  // Every other movieproxy channel keeps the P5/P5.4 native-player behavior.
+  let mfixerDirect = "";
+  if(isMovieProxyWatch(resolvedChannel.file)){
+    mfixerDirect = await resolveMfixerDirectIfEligible(resolvedChannel.file);
+  }
+
+  if(isAndroidNativeTarget() && isMovieProxyWatch(resolvedChannel.file) && !mfixerDirect){
     remember3BBState();
     let nativeUrl;
     try{
@@ -1061,9 +1135,13 @@ async function loadChannel(channel, element){
   await stopAllPlayers();
 
   let url;
-  try{ url = proxyUrl(await resolvePlaybackUrl(resolvedChannel.file)); }
-  catch(e){ return; }
+  try{
+    url = mfixerDirect || proxyUrl(await resolvePlaybackUrl(resolvedChannel.file));
+  }catch(e){ return; }
   activeUrl = url;
+  if(mfixerDirect){
+    addPlaybackLog("M-FIXER", "DIRECT + SMART RECOVERY V0.6");
+  }
   addPlaybackLog("OPEN", "เริ่มเปิด " + currentServerName + " • " + url);
 
   // PLUS-SERVER SPECIAL:
@@ -1192,7 +1270,28 @@ function useHLS_STABLE(url){
     setStatus("กำลังโหลดด้วย Analyzer Engine...");
     addPlaybackLog("ENGINE", "เริ่ม HLS แบบเดียวกับ TIEA Stream Analyzer");
 
-    currentHls = new Hls({
+    const isMfixerSmart = isMfixerDirectUrl(url);
+    const hlsConfig = isMfixerSmart ? {
+      // Proven V0.6 projector profile
+      enableWorker: false,
+      lowLatencyMode: false,
+      autoStartLoad: true,
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 6,
+      maxBufferLength: 20,
+      maxMaxBufferLength: 30,
+      backBufferLength: 10,
+      manifestLoadingTimeOut: 15000,
+      levelLoadingTimeOut: 15000,
+      fragLoadingTimeOut: 20000,
+      manifestLoadingMaxRetry: 2,
+      levelLoadingMaxRetry: 2,
+      fragLoadingMaxRetry: 3,
+      manifestLoadingRetryDelay: 1000,
+      levelLoadingRetryDelay: 1000,
+      fragLoadingRetryDelay: 1000
+    } : {
+      // Original P5.4 settings — unchanged for all other HLS
       enableWorker: true,
       lowLatencyMode: false,
       autoStartLoad: true,
@@ -1203,7 +1302,16 @@ function useHLS_STABLE(url){
       fragLoadingMaxRetry: 8,
       manifestLoadingMaxRetry: 5,
       levelLoadingMaxRetry: 5
-    });
+    };
+
+    if(isMfixerSmart){
+      mfixerLastFragAt = Date.now();
+      mfixerLastVideoProgressAt = Date.now();
+      mfixerLastVideoTime = Number(video.currentTime || 0);
+      addPlaybackLog("M-FIXER", "SMART WATCHDOG พร้อมทำงาน");
+    }
+
+    currentHls = new Hls(hlsConfig);
 
     currentHls.attachMedia(video);
 
@@ -1223,6 +1331,7 @@ function useHLS_STABLE(url){
     });
 
     currentHls.on(Hls.Events.FRAG_LOADED, function(event, data){
+      if(isMfixerSmart) mfixerLastFragAt = Date.now();
       const loaded = data && data.frag && data.frag.stats ? (data.frag.stats.loaded || 0) : 0;
       addPlaybackLog("HLS", "FRAG_LOADED " + loaded + " bytes");
     });
@@ -1238,6 +1347,11 @@ function useHLS_STABLE(url){
 
       if(!data.fatal) return;
 
+      if(isMfixerSmart){
+        mfixerSmartReconnect(url, "HLS Fatal " + detail);
+        return;
+      }
+
       if(data.type === Hls.ErrorTypes.NETWORK_ERROR){
         try{ currentHls.startLoad(); }catch(e){}
       }else if(data.type === Hls.ErrorTypes.MEDIA_ERROR){
@@ -1246,6 +1360,28 @@ function useHLS_STABLE(url){
         handlePlaybackFailure("HLS Fatal: " + detail, true);
       }
     });
+
+    if(isMfixerSmart){
+      if(hlsWatchdog){ clearInterval(hlsWatchdog); hlsWatchdog = null; }
+      hlsWatchdog = setInterval(()=>{
+        if(!currentHls || video.paused || video.ended || mfixerReconnecting) return;
+        const now = Date.now();
+        const ct = Number(video.currentTime || 0);
+        if(ct > mfixerLastVideoTime + 0.2){
+          mfixerLastVideoTime = ct;
+          mfixerLastVideoProgressAt = now;
+          return;
+        }
+        const videoStall = (now - (mfixerLastVideoProgressAt || now)) / 1000;
+        const fragSilent = (now - (mfixerLastFragAt || mfixerLastVideoProgressAt || now)) / 1000;
+        if(videoStall >= 15 && fragSilent >= 15){
+          addPlaybackLog("M-FIXER", "SMART WATCHDOG • video=" + Math.round(videoStall) + "s • frag=" + Math.round(fragSilent) + "s");
+          mfixerLastVideoProgressAt = now;
+          mfixerLastFragAt = now;
+          mfixerSmartReconnect(url, "ภาพหยุด + Fragment หยุด >=15s");
+        }
+      }, 2000);
+    }
 
     video.addEventListener("playing", function analyzerPlaying(){
       applyBalancedVolume(url);
