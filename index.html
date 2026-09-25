@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <title>TIEA IPTV HOME V7.2 ALPHA 5.9.6 — KEEP CURRENT LIST PAGE</title>
+    <title>TIEA IPTV HOME V7.2 ALPHA 5.9.6 — KEEP CURRENT LIST PAGE • DOOTVZ INTERNAL V0.7</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
     <script>window.TIEA_HLS_1517=window.Hls;</script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -855,6 +855,13 @@
             }
         }
     </style>
+    <!-- TIEA APP24 PROJECTOR STABLE P1 • 2026-09-23
+         Weak projector only:
+         - stable quality cap
+         - 24PlayerHD no 1080/high unlock
+         - forward buffer 48s / max 80s
+         Android TV/browser and Worker H4 unchanged.
+    -->
 </head>
 
 <body>
@@ -867,6 +874,7 @@
             <button class="menu-btn active" data-action="home">🏠 หน้าแรก</button>
             <div class="group-title">ทีวีออนไลน์</div>
             <button class="menu-btn" data-link="https://tiea9999.github.io/tv-1/3bb.html">📡 ทีวีออนไลน์</button>
+            <button class="menu-btn" id="mfixerTestBtn">🧪 M-Fixer ทดสอบ</button>
             <div class="group-title">หนัง</div>
             <button class="menu-btn" data-source="movie-main">🎬 หนังทั้งหมด</button>
             <div class="group-title">ซีรีส์</div>
@@ -1344,7 +1352,7 @@ Promise.allSettled([
 }
 function renderRows(rows,title='รายการ',target=content){state.rows=rows;target.innerHTML='';rows.forEach(row=>{let sec=document.createElement('div');sec.className='section';sec.innerHTML=`<div class="section-head"><div class="section-title">${row.title}</div><div class="section-tools"><div class="badge">${row.items.length} รายการ</div><button class="see-all-btn">ดูทั้งหมด</button></div></div><div class="row"></div>`;let rowEl=sec.querySelector('.row');row.items.slice(0,18).forEach(item=>rowEl.appendChild(createCard(item)));sec.querySelector('.see-all-btn').onclick=()=>openModal(row.title,row.items);target.appendChild(sec)});if(!rows.length)target.innerHTML='<div class="hero"><div class="hero-title">ไม่พบรายการ</div><div class="hero-sub">ตรวจสอบชื่อไฟล์ JSON หรือโครงสร้างข้อมูลอีกครั้ง</div></div>';setTimeout(()=>document.querySelector('.card,.menu-btn.active')?.focus(),80)}
 function epText(item){if(item.latest_ep&&item.total_ep)return'EP.'+item.latest_ep+'/'+item.total_ep;if(item.total_ep)return'EP.1-'+item.total_ep;if(item.episodes?.length)return'EP.'+item.episodes.length;return''}
-function createCard(item){let btn=document.createElement('button'),isFolder=item.kind==='folder'||item.kind==='link';btn.className='card'+(isFolder?' folder-card':'');btn.type='button';let image=isFolder?(item.image||FOLDER_LOGO):imgOf(item),lang=item.language||'',ep=epText(item),st=item.status||'';if(!st&&!isFolder&&item.kind==='series'){let le=Number(item.latest_ep||0),te=Number(item.total_ep||0);st=(te&&le&&le>=te)?'จบแล้ว':'ยังไม่จบ'}let done=String(st).includes('จบ')&&!String(st).includes('ยัง');btn.innerHTML=`<div class="card-glow"></div><div class="poster-wrap">${image?`<img class="thumb ${item.type==='tv'?'tv':''} ${isFolder?'folder-logo':''}" src="${image}" loading="lazy" onerror="this.onerror=null;this.outerHTML='<div class=&quot;thumb fallback&quot;>${item.kind==='link'?'🔗':(isFolder?'📁':'🎬')}</div>'">`:`<div class="thumb fallback">${item.kind==='link'?'🔗':(isFolder?'📁':'🎬')}</div>`}${(!isFolder&&lang)?`<div class="lang-ribbon">${lang}</div>`:''}${(!isFolder&&st)?`<div class="status-pill ${done?'done':''}">${st}</div>`:''}${(!isFolder&&ep)?`<div class="ep-pill">${ep}</div>`:''}</div><div class="card-body"><div class="card-title">${item.kind==='link'?'🔗 ':isFolder?'📁 ':''}${item.title||'ไม่มีชื่อ'}</div><div class="card-meta">${item.group?`<span class="tag">${item.group}</span>`:''}</div></div>`;btn.onclick=()=>openItem(item);btn.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openItem(item)}};return btn}
+function createCard(item){let btn=document.createElement('button'),isFolder=item.kind==='folder'||item.kind==='link';btn.className='card'+(isFolder?' folder-card':'');btn.type='button';let image=isFolder?(item.image||FOLDER_LOGO):imgOf(item),lang=item.language||'',ep=epText(item),st=item.status||'';if(!st&&!isFolder&&item.kind==='series'){let le=Number(item.latest_ep||0),te=Number(item.total_ep||0);st=(te&&le&&le>=te)?'จบแล้ว':'ยังไม่จบ'}let done=String(st).includes('จบ')&&!String(st).includes('ยัง');btn.innerHTML=`<div class="card-glow"></div><div class="poster-wrap">${image?`<img class="thumb ${item.type==='tv'?'tv':''} ${isFolder?'folder-logo':''}" src="${image}" loading="lazy" onerror="this.onerror=null;this.outerHTML='<div class="thumb fallback">${item.kind==='link'?'🔗':(isFolder?'📁':'🎬')}</div>'">`:`<div class="thumb fallback">${item.kind==='link'?'🔗':(isFolder?'📁':'🎬')}</div>`}${(!isFolder&&lang)?`<div class="lang-ribbon">${lang}</div>`:''}${(!isFolder&&st)?`<div class="status-pill ${done?'done':''}">${st}</div>`:''}${(!isFolder&&ep)?`<div class="ep-pill">${ep}</div>`:''}</div><div class="card-body"><div class="card-title">${item.kind==='link'?'🔗 ':isFolder?'📁 ':''}${item.title||'ไม่มีชื่อ'}</div><div class="card-meta">${item.group?`<span class="tag">${item.group}</span>`:''}</div></div>`;btn.onclick=()=>openItem(item);btn.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openItem(item)}};return btn}
 function openItem(item){if(item.kind==='link'){location.href=item.url;return}if(item.kind==='folder'){loadFolder(item);return}if(item.kind==='series'&&item.episodes?.length){openDetail(item);return}playItem(item,0)}
 function openDetail(item){let modal=$('modal');$('modalTitle').textContent=item.title;$('modalBody').innerHTML=`<div class="detail-box"><div class="detail-title">${item.title}</div><div class="detail-sub">${item.language?item.language+' • ':''}${item.status?item.status+' • ':''}${item.group||''}${item.total_ep?' • ทั้งหมด '+item.total_ep+' ตอน':''}</div></div><div class="episode-list"></div>`;let list=$('modalBody').querySelector('.episode-list');item.episodes.forEach((ep,i)=>{let b=document.createElement('button');b.className='episode-btn';b.textContent=ep.title||`EP${i+1}`;b.onclick=()=>{state.returnEpisodeItem=item;closeModal();const inheritedPage=pageUrlOf(ep)||pageUrlOf(item)||torboKnownPageByTitle(item.title);const playEp={...ep,page:inheritedPage,servers:(ep.servers||[]).map(s=>({...s,page:pageUrlOf(s)||inheritedPage}))};playItem(playEp,0,item.title+' '+b.textContent)};list.appendChild(b)});$('modalCount').textContent='ทั้งหมด '+item.episodes.length+' ตอน';$('pageInfo').textContent='เลือกตอน';$('prevPageBtn').style.display='none';$('nextPageBtn').style.display='none';modal.classList.add('show');setTimeout(()=>list.querySelector('.episode-btn')?.focus(),80)}
 function openModal(title,items){state.modalItems=items;state.page=1;$('modalTitle').textContent=title;$('prevPageBtn').style.display='';$('nextPageBtn').style.display='';renderModalPage();$('modal').classList.add('show')}
@@ -1847,6 +1855,10 @@ function chooseProjectorSafeLevel(){
     }
 
     if(safe){
+      if(isProjectorWeakMode()){
+        state.hls.autoLevelCapping=safe.i;
+        state.hls.startLevel=safe.i;
+      }
       state.hls.currentLevel=safe.i;
       state.hls.nextLevel=safe.i;
       state.hls.loadLevel=safe.i;
@@ -2189,6 +2201,11 @@ function startWatchdog(){
   },3000);
 }
 function cleanupPlayer(fullReset=true){
+  if(state._dootvzV07Watch){
+    clearInterval(state._dootvzV07Watch);
+    state._dootvzV07Watch=null;
+  }
+
   if(state._cleanupBusy)return;
   state._cleanupBusy=true;
   try{
@@ -2408,11 +2425,111 @@ function tieaExtractBcdnUrl(value){
   return '';
 }
 
+/* ===== TIEA DOOTVZ INTERNAL V0.7 — PROVEN V0.6 PLAYER TRANSPLANT ===== */
+const TIEA_DOOTVZ_V07_WORKER='https://m-test.tawatchai250958.workers.dev';
+
+function tieaIsDootvzV07(url){
+  try{
+    const u=new URL(String(url||'').trim(),location.href);
+    return u.hostname.toLowerCase()==='dootvz.ddns.net' &&
+      (u.port==='25461'||u.host.toLowerCase()==='dootvz.ddns.net:25461');
+  }catch(e){ return false; }
+}
+function tieaDootvzV07Proxy(raw){
+  return TIEA_DOOTVZ_V07_WORKER+'/dootvz?url='+encodeURIComponent(String(raw||'').trim());
+}
+function tieaPlayDootvzV07(raw,title){
+  raw=String(raw||'').trim();
+  if(!tieaIsDootvzV07(raw))return false;
+
+  cleanupPlayer();
+  state.originalUrl=raw;
+  state.currentUrl=tieaDootvzV07Proxy(raw);
+  state.currentTitle=title||'DOOTVZ';
+
+  $('playerTitle').textContent=state.currentTitle+' • INTERNAL';
+  playerPanel.classList.add('show');
+  showPlayerUI();
+  setStatus('DOOTVZ • INTERNAL V0.7 • m-test V0.5');
+
+  const H=window.TIEA_HLS_1517||window.Hls;
+  if(!H||!H.isSupported()){
+    setStatus('DOOTVZ • Hls.js 1.5.17 ไม่รองรับอุปกรณ์นี้');
+    return true;
+  }
+
+  const h=new H({
+    enableWorker:true,
+    lowLatencyMode:false,
+    autoStartLoad:true,
+    liveSyncDurationCount:4,
+    liveMaxLatencyDurationCount:8,
+    maxBufferLength:45,
+    maxMaxBufferLength:60,
+    backBufferLength:20,
+    manifestLoadingTimeOut:20000,
+    levelLoadingTimeOut:20000,
+    fragLoadingTimeOut:25000,
+    manifestLoadingMaxRetry:3,
+    levelLoadingMaxRetry:3,
+    fragLoadingMaxRetry:4,
+    manifestLoadingRetryDelay:1000,
+    levelLoadingRetryDelay:1000,
+    fragLoadingRetryDelay:1000
+  });
+  state.hls=h;
+
+  let lastFrag=Date.now(), lastVideoTime=0, stallAt=0;
+  state._dootvzV07Watch=setInterval(()=>{
+    if(state.hls!==h){clearInterval(state._dootvzV07Watch);state._dootvzV07Watch=null;return}
+    if(video.paused)return;
+    const now=Date.now(),cur=video.currentTime||0;
+    if(cur>lastVideoTime+.2){lastVideoTime=cur;stallAt=0;return}
+    if(!stallAt)stallAt=now;
+    if(now-stallAt>=25000 && now-lastFrag>=25000){
+      stallAt=now;lastFrag=now;
+      try{h.stopLoad();h.startLoad(-1);video.play().catch(()=>{})}catch(e){}
+    }
+  },2000);
+
+  h.on(H.Events.MANIFEST_PARSED,()=>{
+    if(state.hls!==h)return;
+    setStatus('DOOTVZ • MANIFEST PASS');
+    video.play().catch(()=>{});
+  });
+  h.on(H.Events.FRAG_LOADED,()=>{
+    if(state.hls!==h)return;
+    lastFrag=Date.now();
+  });
+  h.on(H.Events.ERROR,(_,d)=>{
+    if(state.hls!==h||!d||!d.fatal)return;
+    setStatus('DOOTVZ • '+String(d.details||'HLS ERROR'));
+    if(d.type===H.ErrorTypes.NETWORK_ERROR){
+      try{h.startLoad()}catch(e){}
+    }else if(d.type===H.ErrorTypes.MEDIA_ERROR){
+      try{h.recoverMediaError()}catch(e){}
+    }
+  });
+
+  h.loadSource(state.currentUrl);
+  h.attachMedia(video);
+  video.play().catch(()=>{});
+  return true;
+}
+
 async function playItem(item,serverIndex=0,displayTitle=''){
   if(!displayTitle)state.returnEpisodeItem=null;
 
   let original=getUrl(item,serverIndex);
   let page=dynamicPageFromItem(item,serverIndex);
+
+  /* DOOTVZ: bypass every legacy/provider/native route.
+     This is the same isolated Hls.js 1.5.17 configuration that passed the V0.6 long test. */
+  if(tieaIsDootvzV07(original)){
+    const _dzTitle=displayTitle||item.title||'DOOTVZ';
+    tieaPlayDootvzV07(original,_dzTitle);
+    return;
+  }
 
   if(!original&&!page){
     setStatus('ไม่พบลิงก์เล่นหรือหน้าต้นทาง');
@@ -2769,7 +2886,7 @@ function playCandidate(candidates,item,serverIndex,idx){
       }
 
       // Stable Adaptive V4: เริ่มต่ำก่อน แล้วค่อยเปิด 1080 หลังเล่นนิ่ง 18 วินาที
-      if(sourceIsMain24 && state.hls && state._24LowLevel>=0 && !state._24HighBlacklisted && !state._24UnlockTimer){
+      if(sourceIsMain24 && !isProjectorWeakMode() && state.hls && state._24LowLevel>=0 && !state._24HighBlacklisted && !state._24UnlockTimer){
         state._24UnlockTimer=setTimeout(()=>{
           state._24UnlockTimer=null;
           if(state.hls!==activeHls || state._24HighBlacklisted)return;
@@ -2843,8 +2960,8 @@ function playCandidate(candidates,item,serverIndex,idx){
       enableWorker:sourceIsBcdn ? true : (sourceIsMain24 ? true : false),
       lowLatencyMode:false,
 
-      maxBufferLength:sourceIsBcdn?30:(sourceIs6395?24:(mySeriesVod?60:((isProjectorWeakMode()||isProjectorMode())?38:(isUnstableLiveUrl(state.originalUrl)?28:35)))),
-      maxMaxBufferLength:sourceIsBcdn?60:(sourceIs6395?40:(mySeriesVod?120:((isProjectorWeakMode()||isProjectorMode())?65:(isUnstableLiveUrl(state.originalUrl)?50:60)))),
+      maxBufferLength:sourceIsBcdn?30:(sourceIs6395?24:(mySeriesVod?60:(isProjectorWeakMode()?48:(isProjectorMode()?38:(isUnstableLiveUrl(state.originalUrl)?28:35))))),
+      maxMaxBufferLength:sourceIsBcdn?60:(sourceIs6395?40:(mySeriesVod?120:(isProjectorWeakMode()?80:(isProjectorMode()?65:(isUnstableLiveUrl(state.originalUrl)?50:60))))),
       backBufferLength:sourceIsBcdn?15:(sourceIs6395?5:(mySeriesVod?30:((isProjectorWeakMode()||isProjectorMode())?6:12))),
       maxBufferHole:sourceIsBcdn?0.5:(sourceIs6395?1.2:(mySeriesVod?0.8:2.2)),
       highBufferWatchdogPeriod:sourceIs6395?12:(mySeriesVod?12:8),
@@ -5193,6 +5310,478 @@ window.TIEA_BCDN_V29={
      ไม่มี reverse
      B-CDN V2.9 preserved
 -->
+
+
+<!-- =========================================================
+ TIEA APP24 UI PATCH V1.0 — CURRENT ENGINE PRESERVED
+ 2026-09-17
+ - DO NOT CHANGE playback routing: 24PlayerHD / 123HD / short drama / B-CDN
+ - TV/mobile fit
+ - menu appears on touch/mouse/remote then auto hides
+ - add BACK buttons to main topbar and player topbar
+ - BACK returns player -> EP/list, modal -> current list, category -> HOME
+========================================================== -->
+<style id="tiea-app24-ui-patch-v1">
+  #app24BackBtn,#app24PlayerBackBtn{display:inline-flex!important;align-items:center!important;justify-content:center!important}
+  #app24BackBtn{min-width:108px}
+  #app24PlayerBackBtn{min-width:110px}
+
+  @media (max-width:900px), (pointer:coarse){
+    .sidebar{
+      position:fixed!important;left:0;top:0;bottom:0;z-index:12020!important;
+      width:min(78vw,290px)!important;min-width:0!important;
+      transform:translateX(-105%);transition:transform .22s ease!important;
+      box-shadow:10px 0 30px rgba(0,0,0,.55)
+    }
+    body.app24-menu-open .sidebar{transform:translateX(0)!important}
+    .main{width:100vw!important;margin:0!important}
+    .topbar{left:0!important;width:100%!important;padding:8px!important;gap:7px!important;transition:opacity .22s ease,visibility .22s ease!important}
+    body.app24-ui-hidden .topbar{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+    .top-btn{min-height:46px!important;padding:9px 12px!important;font-size:14px!important}
+    .status{font-size:11px!important;max-width:38vw!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+    .content{width:100%!important;padding-left:10px!important;padding-right:10px!important}
+    .player-top{padding:8px!important;gap:7px!important;flex-wrap:nowrap!important}
+    .player-btn{min-height:46px!important;padding:8px 12px!important;font-size:14px!important;white-space:nowrap!important}
+    .player-title{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+    .modal-box{width:min(96vw,980px)!important;max-height:94vh!important}
+  }
+
+  @media (max-width:520px){
+    .top-btn{padding:8px 9px!important;font-size:12px!important;min-width:0!important}
+    #app24BackBtn{min-width:82px!important}
+    .status{display:none!important}
+    .player-btn{padding:8px 9px!important;font-size:12px!important;min-width:0!important}
+    #app24PlayerBackBtn{min-width:84px!important}
+    .player-title{font-size:12px!important}
+  }
+</style>
+<script id="tiea-app24-ui-patch-js-v1">
+(function(){
+'use strict';
+if(window.__TIEA_APP24_UI_V1__)return;
+window.__TIEA_APP24_UI_V1__=true;
+
+function byId(id){return document.getElementById(id)}
+function playerShowing(){const p=byId('playerPanel');return !!(p&&p.classList.contains('show'))}
+function modalShowing(){const m=byId('modal');return !!(m&&m.classList.contains('show'))}
+
+function tieaBack(){
+  try{
+    if(byId('externalSettingsModal')?.classList.contains('show')){ closeExternalSettings(); return; }
+    if(playerShowing()){
+      // Use the CURRENT mother close logic so EP/list return state is preserved.
+      if(typeof closePlayer==='function') closePlayer();
+      return;
+    }
+    if(modalShowing()){
+      // V5.9.6 closeModal already restores the same list/page.
+      if(typeof closeModal==='function') closeModal();
+      return;
+    }
+    if(window.state && state.activeSource && state.activeSource!=='home'){
+      if(typeof renderHome==='function') renderHome();
+      try{state.activeSource='home'}catch(e){}
+      document.querySelectorAll('.menu-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelector('.menu-btn[data-action="home"]')?.classList.add('active');
+      try{document.getElementById('content').scrollTop=0}catch(e){}
+      return;
+    }
+    location.href=(typeof HOME_URL!=='undefined'?HOME_URL:'https://tiea9999.github.io/tv-1/index.html');
+  }catch(e){
+    location.href='https://tiea9999.github.io/tv-1/index.html';
+  }
+}
+window.tieaApp24Back=tieaBack;
+
+function addButtons(){
+  const top=byId('homeBtn')?.parentElement;
+  if(top&&!byId('app24BackBtn')){
+    const b=document.createElement('button');
+    b.className='top-btn'; b.id='app24BackBtn'; b.textContent='↩ ย้อนกลับ';
+    b.onclick=tieaBack;
+    top.insertBefore(b,byId('homeBtn'));
+  }
+  const ptop=byId('closePlayerBtn')?.parentElement;
+  if(ptop&&!byId('app24PlayerBackBtn')){
+    const b=document.createElement('button');
+    b.className='player-btn'; b.id='app24PlayerBackBtn'; b.textContent='↩ ย้อนกลับ';
+    b.onclick=tieaBack;
+    ptop.insertBefore(b,byId('closePlayerBtn'));
+  }
+}
+
+let uiTimer=null;
+function showUi(openMenu){
+  document.body.classList.remove('app24-ui-hidden');
+  if(openMenu) document.body.classList.add('app24-menu-open');
+  clearTimeout(uiTimer);
+  uiTimer=setTimeout(()=>{
+    if(!playerShowing()&&!modalShowing()&&!byId('externalSettingsModal')?.classList.contains('show')){
+      document.body.classList.remove('app24-menu-open');
+      document.body.classList.add('app24-ui-hidden');
+    }
+  },4500);
+}
+function hideMenu(){document.body.classList.remove('app24-menu-open')}
+
+addButtons();
+showUi(false);
+
+['pointerdown','mousemove','touchstart'].forEach(ev=>document.addEventListener(ev,(e)=>{
+  if(playerShowing()){ try{if(typeof showPlayerUI==='function')showPlayerUI(false)}catch(_){}; return; }
+  // Touch/click near left edge opens side menu; elsewhere only shows top controls.
+  const x=(e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX);
+  showUi(typeof x==='number' && x<42);
+},{passive:true}));
+
+document.addEventListener('keydown',(e)=>{
+  if(playerShowing()){
+    if(e.key==='ArrowUp'||e.keyCode===38){
+      try{if(typeof showPlayerUI==='function')showPlayerUI(false)}catch(_){}
+    }
+    return;
+  }
+  // Any remote key reveals controls. LEFT while no modal opens menu.
+  const open=(e.key==='ArrowLeft'||e.keyCode===37) && !modalShowing();
+  showUi(open);
+},true);
+
+// Clicking content closes the overlay sidebar but does not change current page.
+byId('content')?.addEventListener('click',()=>hideMenu(),true);
+document.querySelectorAll('.menu-btn').forEach(b=>b.addEventListener('click',()=>setTimeout(hideMenu,80)));
+
+// Keep newly added player BACK in the existing remote left/right button navigation.
+try{ if(typeof setupPlayerButtonNav==='function') setupPlayerButtonNav(); }catch(e){}
+
+window.TIEA_APP24_UI={version:'V1.0 CURRENT ENGINE + BACK + AUTO MENU',playback:'UNCHANGED'};
+console.log('TIEA APP24 UI V1.0 loaded — current playback engine preserved');
+})();
+</script>
+
+
+<script id="tiea-app24-mfixer-v06-isolated">
+/* TIEA APP24 — M-FIXER V0.7 PROJECTOR BUFFER TEST
+   Separate from the existing App24 playback engine.
+   Does not alter 24/123/B-CDN/movie/series routing.
+*/
+(function(){
+'use strict';
+
+const MFIXER_TEST_URL='https://edge-1.m-fixer.net:8092/stream/ais/hbohd/master.m3u8';
+let mh=null, timer=null, lastFragAt=0, lastMoveAt=0, lastTime=0;
+let reconnecting=false, reconnectAt=0, reconnectCount=0;
+
+function stopMfixerTest(){
+  if(timer){clearInterval(timer);timer=null}
+  try{if(mh){mh.destroy();mh=null}}catch(e){}
+}
+function reconnect(reason){
+  if(reconnecting)return;
+  const now=Date.now();
+  if(reconnectAt && now-reconnectAt<3500)return;
+  reconnectAt=now; reconnecting=true; reconnectCount++;
+  try{setStatus('M-Fixer Smart Recovery #'+reconnectCount+' • '+reason)}catch(e){}
+  stopMfixerTest();
+  setTimeout(()=>{reconnecting=false; startMfixerTest();},1500);
+}
+function startMfixerTest(){
+  stopMfixerTest();
+  try{
+    if(typeof cleanupPlayer==='function')cleanupPlayer();
+    state.originalUrl=MFIXER_TEST_URL;
+    state.currentUrl=MFIXER_TEST_URL;
+    state.currentTitle='M-Fixer HBO • V0.7F STABLE';
+    $('playerTitle').textContent=state.currentTitle;
+    playerPanel.classList.remove('native24-mode','hide-ui');
+    playerPanel.classList.add('show');
+    if(native24Frame){native24Frame.src='about:blank';native24Frame.style.display='none'}
+    video.style.display='block';
+    video.muted=false; video.defaultMuted=false; video.volume=1;
+  }catch(e){}
+
+  if(!window.Hls || !Hls.isSupported()){
+    video.src=MFIXER_TEST_URL;
+    video.play().catch(()=>{});
+    return;
+  }
+
+  mh=new Hls({
+    enableWorker:false,
+    lowLatencyMode:false,
+    autoStartLoad:true,
+    liveSyncDurationCount:4,
+    liveMaxLatencyDurationCount:8,
+    maxBufferLength:45,
+    maxMaxBufferLength:60,
+    backBufferLength:20,
+    manifestLoadingTimeOut:15000,
+    levelLoadingTimeOut:15000,
+    fragLoadingTimeOut:20000,
+    manifestLoadingMaxRetry:2,
+    levelLoadingMaxRetry:2,
+    fragLoadingMaxRetry:3,
+    manifestLoadingRetryDelay:1000,
+    levelLoadingRetryDelay:1000,
+    fragLoadingRetryDelay:1000
+  });
+  state.hls=mh;
+  const my=mh;
+  lastFragAt=Date.now(); lastMoveAt=Date.now(); lastTime=Number(video.currentTime||0);
+
+  my.on(Hls.Events.MANIFEST_PARSED,()=>{
+    if(mh!==my)return;
+    try{setStatus('M-Fixer V0.7F • STABLE FAST START')}catch(e){}
+    // FAST START is startup-only. After playback begins, V0.7 remains unchanged.
+    try{
+      const edge=Number(my.liveSyncPosition);
+      if(Number.isFinite(edge) && edge>0){
+        video.currentTime=Math.max(0,edge-0.75);
+      }
+    }catch(e){}
+    video.play().catch(()=>{});
+  });
+
+  my.on(Hls.Events.LEVEL_LOADED,()=>{
+    if(mh!==my)return;
+    // During startup only, catch the current live edge and kick play.
+    // Do nothing once the video has already started moving.
+    if(Number(video.currentTime||0)<1){
+      try{
+        const edge=Number(my.liveSyncPosition);
+        if(Number.isFinite(edge) && edge>0){
+          video.currentTime=Math.max(0,edge-0.50);
+        }
+      }catch(e){}
+      video.play().catch(()=>{});
+    }
+  });
+  my.on(Hls.Events.FRAG_LOADED,()=>{
+    if(mh!==my)return;
+    lastFragAt=Date.now();
+  });
+  my.on(Hls.Events.ERROR,(_,d)=>{
+    if(mh!==my || !d)return;
+    // Non-fatal aborted/buffer events are intentionally ignored.
+    if(!d.fatal)return;
+    reconnect('HLS Fatal '+String(d.details||''));
+  });
+  my.loadSource(MFIXER_TEST_URL);
+  my.attachMedia(video);
+
+  timer=setInterval(()=>{
+    if(mh!==my || reconnecting || video.paused || video.ended)return;
+    const now=Date.now(), ct=Number(video.currentTime||0);
+    if(ct>lastTime+0.2){
+      lastTime=ct; lastMoveAt=now; return;
+    }
+    const videoStall=(now-lastMoveAt)/1000;
+    const fragSilent=(now-lastFragAt)/1000;
+
+    // V0.7 projector behavior:
+    // If media time stalls but fragments are still arriving, do NOT reconnect.
+    // Give MediaSource a gentle play nudge and let the larger buffer recover naturally.
+    if(videoStall>=8 && fragSilent<8){
+      try{
+        if(video.readyState>=2) video.play().catch(()=>{});
+      }catch(e){}
+    }
+
+    if(videoStall>=25 && fragSilent>=25){
+      lastMoveAt=now; lastFragAt=now;
+      reconnect('ภาพหยุด + Fragment หยุด >=25s');
+    }
+  },2000);
+}
+
+document.getElementById('mfixerTestBtn')?.addEventListener('click',function(e){
+  e.preventDefault();
+  startMfixerTest();
+});
+
+window.TIEA_MFIXER_V06_TEST={start:startMfixerTest,stop:stopMfixerTest,version:'V0.7 PROJECTOR BUFFER'};
+})();
+</script>
+
+
+<script>
+/* ================================================================
+   TIEA APP24 V0.7F + DOOTVZ INTERNAL V0.5 EXACT ROUTE FIX
+   Root cause targeted:
+   - DOOTVZ items that arrive as item.kind === "link" were leaving through
+     openItem() -> location.href BEFORE playItem() could see them.
+   - Catch at openItem FIRST, then retain safety gates for all player exits.
+   ================================================================ */
+(function(){
+'use strict';
+
+const DZ_WORKER='https://m-test.tawatchai250958.workers.dev';
+
+function dzRaw(v){
+  return String(v||'').trim();
+}
+function dzIs(v){
+  try{
+    const u=new URL(dzRaw(v),location.href);
+    return u.hostname.toLowerCase()==='dootvz.ddns.net' &&
+           (u.port==='25461' || u.host.toLowerCase()==='dootvz.ddns.net:25461');
+  }catch(e){ return false; }
+}
+function dzFind(item,serverIndex){
+  const a=[];
+  try{ a.push(getUrl(item,serverIndex||0)); }catch(e){}
+  if(item){
+    a.push(item.url,item.link,item.stream,item.file,item.src,item.href);
+    (item.servers||[]).forEach(x=>a.push(x&&x.url,x&&x.link,x&&x.stream,x&&x.file));
+  }
+  return a.find(dzIs)||'';
+}
+function dzProxy(raw){
+  return DZ_WORKER+'/dootvz?url='+encodeURIComponent(dzRaw(raw));
+}
+
+function dzPlay(raw,title){
+  raw=dzRaw(raw);
+  if(!dzIs(raw)) return false;
+
+  /* Never allow the raw HTTP DOOTVZ URL to reach Android VIEW intent. */
+  try{ cleanupPlayer(); }catch(e){}
+
+  const proxy=dzProxy(raw);
+  try{
+    state.originalUrl=raw;
+    state.currentUrl=proxy;
+    state.currentTitle=title||'DOOTVZ';
+    state._native24Mode=false;
+  }catch(e){}
+
+  try{
+    if(native24Frame){
+      native24Frame.src='about:blank';
+      native24Frame.style.display='none';
+    }
+    playerPanel.classList.remove('native24-mode');
+    playerPanel.classList.add('show');
+    playerPanel.classList.remove('hide-ui');
+    video.style.display='block';
+    $('playerTitle').textContent=(title||'DOOTVZ')+' • INTERNAL';
+    setStatus('DOOTVZ • INTERNAL V0.5 • m-test V0.4');
+    showPlayerUI();
+  }catch(e){}
+
+  if(!window.Hls || !Hls.isSupported()){
+    try{setStatus('DOOTVZ • Hls.js ภายในไม่รองรับอุปกรณ์นี้')}catch(e){}
+    return true;
+  }
+
+  const h=new Hls({
+    enableWorker:true,
+    lowLatencyMode:false,
+    autoStartLoad:true,
+    liveSyncDurationCount:4,
+    liveMaxLatencyDurationCount:8,
+    maxBufferLength:45,
+    maxMaxBufferLength:60,
+    backBufferLength:20,
+    manifestLoadingTimeOut:20000,
+    levelLoadingTimeOut:20000,
+    fragLoadingTimeOut:20000,
+    manifestLoadingMaxRetry:3,
+    levelLoadingMaxRetry:3,
+    fragLoadingMaxRetry:4,
+    manifestLoadingRetryDelay:1000,
+    levelLoadingRetryDelay:1000,
+    fragLoadingRetryDelay:1000
+  });
+  state.hls=h;
+
+  h.on(Hls.Events.MANIFEST_PARSED,function(){
+    try{setStatus('DOOTVZ • INTERNAL • MANIFEST PASS')}catch(e){}
+    video.play().catch(()=>{});
+  });
+  h.on(Hls.Events.ERROR,function(_,d){
+    if(!d || !d.fatal)return;
+    try{setStatus('DOOTVZ • '+String(d.details||'HLS ERROR'))}catch(e){}
+    if(d.type===Hls.ErrorTypes.NETWORK_ERROR){
+      try{h.startLoad()}catch(e){}
+    }else if(d.type===Hls.ErrorTypes.MEDIA_ERROR){
+      try{h.recoverMediaError()}catch(e){}
+    }
+  });
+
+  h.loadSource(proxy);
+  h.attachMedia(video);
+  video.play().catch(()=>{});
+  return true;
+}
+
+/* 1. EXACT EARLIEST EXIT:
+      Original openItem sends kind=link straight to location.href.
+      Catch DOOTVZ before that line. */
+const DZ_OLD_OPENITEM=openItem;
+openItem=function(item){
+  const raw=dzFind(item,0);
+  if(raw){
+    dzPlay(raw,(item&&item.title)||'DOOTVZ');
+    return;
+  }
+  return DZ_OLD_OPENITEM.apply(this,arguments);
+};
+window.openItem=openItem;
+
+/* 2. Normal media item path. */
+const DZ_OLD_PLAYITEM=playItem;
+playItem=async function(item,serverIndex=0,displayTitle=''){
+  const raw=dzFind(item,serverIndex);
+  if(raw){
+    dzPlay(raw,displayTitle||(item&&item.title)||'DOOTVZ');
+    return;
+  }
+  return DZ_OLD_PLAYITEM.apply(this,arguments);
+};
+window.playItem=playItem;
+
+/* 3. Safety: even if another old route calls one of these functions,
+      DOOTVZ must stay internal. */
+const DZ_OLD_ROUTE24=route24Player;
+route24Player=function(url,title){
+  if(dzIs(url))return dzPlay(url,title);
+  return DZ_OLD_ROUTE24.apply(this,arguments);
+};
+window.route24Player=route24Player;
+
+const DZ_OLD_DEVICE24=open24DevicePlayer;
+open24DevicePlayer=function(url,title){
+  if(dzIs(url))return dzPlay(url,title);
+  return DZ_OLD_DEVICE24.apply(this,arguments);
+};
+window.open24DevicePlayer=open24DevicePlayer;
+
+const DZ_OLD_FORCE=forceOpenPlayerNow;
+forceOpenPlayerNow=function(url){
+  const raw=url||state.originalUrl||'';
+  if(dzIs(raw))return dzPlay(raw,state.currentTitle||'DOOTVZ');
+  return DZ_OLD_FORCE.apply(this,arguments);
+};
+window.forceOpenPlayerNow=forceOpenPlayerNow;
+
+const DZ_OLD_SAFE=safeIntent;
+safeIntent=function(url,mode){
+  const raw=url||state.originalUrl||'';
+  if(dzIs(raw))return dzPlay(raw,state.currentTitle||'DOOTVZ');
+  return DZ_OLD_SAFE.apply(this,arguments);
+};
+window.safeIntent=safeIntent;
+
+window.TIEA_DOOTVZ_V05={
+  version:'V0.5 EXACT ROUTE FIX',
+  worker:DZ_WORKER,
+  reason:'catch item.kind=link before location.href',
+  play:dzPlay
+};
+console.log('TIEA DOOTVZ INTERNAL V0.5 EXACT ROUTE FIX loaded');
+})();
+</script>
+
 </body>
 
 </html>
