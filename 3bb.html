@@ -2,12 +2,20 @@
 <html lang="th">
 
 <head>
+<!--
+V0.12 STABLE INTERNAL AUTH
+Protected movieproxy flow preserved:
+  /watch?id=CHANNEL -> request /ticket?id=CHANNEL -> signed /watch URL -> playback
+No direct bypass. No channel-list changes in this AUTH-only revision.
+DOOTVZ Clean Start / Remote Smooth / DRM / production Workers unchanged.
+-->
+
 <!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.4-LONG-WATCH-RETURN-REMOTE-SMOOTH-V0.9-DOOTVZ-CLEAN-START-V0.11: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIEA 3BB V2.4 ANALYZER ENGINE LAB • VOL80 • SPORT+MOVIE MAIN BACKUP ORDER</title>
+    <title>TIEA 3BB V0.11 STABLE AUTH ONLY • • VOL80 • SPORT+MOVIE MAIN BACKUP ORDER</title>
 
     <script src="https://ssl.p.jwpcdn.com/player/v/8.26.0/jwplayer.js"></script>
     <script>
@@ -80,7 +88,7 @@
 <body>
 
     <div class="back-home" onclick="goHome()">⬅ กลับหน้าหลัก</div>
-    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • P5.4 • REMOTE SMOOTH V0.9 • DOOTVZ CLEAN START V0.11</h2>
+    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • P5.4 • STABLE • REMOTE SMOOTH • DOOTVZ CLEAN START V0.11</h2>
 
     <div id="player-container">
         <div class="player-controls">
@@ -742,36 +750,11 @@ function proxyUrl(url){
   return url;
 }
 
-// P5: Android / Android TV / Projector + movieproxy => device/native player.
-// PC and all non-movieproxy sources keep the existing internal player path.
-function isAndroidNativeTarget(){
-  const ua = String(navigator.userAgent || "").toLowerCase();
-  return ua.includes("android") || ua.includes("android tv") ||
-         ua.includes("projector") || ua.includes("xgimi") ||
-         ua.includes("mibox") || ua.includes("bravia") || ua.includes("aft");
-}
-
-function launchAndroidNativePlayer(url){
-  if(!url) return;
-  remember3BBState();
-      // P5.4: durable state for long external-player sessions
-      try{
-        localStorage.setItem("tiea3bb_last_group", currentCategory || "ดิจิตอล");
-        localStorage.setItem("tiea3bb_last_scroll", String(window.scrollY || 0));
-      }catch(e){}
-  try{
-    const u = new URL(url);
-    const scheme = u.protocol.replace(":", "");
-    const hostPath = u.host + u.pathname + (u.search || "");
-    const intent = "intent://" + hostPath +
-      "#Intent;scheme=" + scheme +
-      ";action=android.intent.action.VIEW;type=video/*;S.browser_fallback_url=" +
-      encodeURIComponent(url) + ";end";
-    window.location.href = intent;
-  }catch(e){
-    window.location.href = url;
-  }
-}
+// V0.12 INTERNAL ONLY:
+// Automatic Android/native handoff is disabled.
+// Protected channels still obtain a signed Worker ticket before internal playback.
+function isAndroidNativeTarget(){ return false; }
+function launchAndroidNativePlayer(url){ return openExternal(url); }
 
 const FAST_WARM_URLS = [
   "https://iptv.tawatchai250958.workers.dev/?url=http://tiea1.3bbddns.com:28470/0.m3u8"
@@ -798,37 +781,16 @@ function forceAudio100(){
 async function openExternal(url){
   url = url || (activeChannel ? activeChannel.file : "") || activeUrl;
   if(!url) return;
-  try{ url = await resolvePlaybackUrl(url); activeUrl = url; }catch(e){ return; }
-  try{
-    const u = new URL(url);
-    const scheme = u.protocol.replace(":","");
-    const hostPath = u.host + u.pathname + (u.search || "");
-    const intent = "intent://" + hostPath +
-      "#Intent;scheme=" + scheme +
-      ";action=android.intent.action.VIEW;type=video/*;S.browser_fallback_url=" +
-      encodeURIComponent(url) + ";end";
-    window.location.href = intent;
-  }catch(e){
-    window.location.href = url;
-  }
+  try{ url = proxyUrl(await resolvePlaybackUrl(url)); activeUrl = url; }catch(e){ return; }
+  document.getElementById("player-container").style.display = "block";
+  forceShowControls();
+  await stopAllPlayers();
+  if(url.includes(".mpd")) playMPDNotice(activeChannel, url);
+  else useHLS_STABLE(url);
 }
 
 async function openMX(url){
-  url = url || (activeChannel ? activeChannel.file : "") || activeUrl;
-  if(!url) return;
-  try{ url = await resolvePlaybackUrl(url); activeUrl = url; }catch(e){ return; }
-  try{
-    const u = new URL(url);
-    const scheme = u.protocol.replace(":","");
-    const hostPath = u.host + u.pathname + (u.search || "");
-    const intent = "intent://" + hostPath +
-      "#Intent;scheme=" + scheme +
-      ";action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;S.browser_fallback_url=" +
-      encodeURIComponent(url) + ";end";
-    window.location.href = intent;
-  }catch(e){
-    window.location.href = url;
-  }
+  return openExternal(url);
 }
 
 async function stopAllPlayers(){
@@ -962,20 +924,8 @@ async function loadChannel(channel, element){
 
   document.querySelectorAll(".channel").forEach(ch=>ch.classList.remove("active"));
   if(element) element.classList.add("active");
-
-  // P5: movieproxy on Android uses a fresh signed H4 ticket, then hands it to
-  // the device player. Back returns to this same category/list position.
-  if(isAndroidNativeTarget() && isMovieProxyWatch(resolvedChannel.file)){
-    remember3BBState();
-    let nativeUrl;
-    try{
-      nativeUrl = await resolvePlaybackUrl(resolvedChannel.file);
-      activeUrl = nativeUrl;
-    }catch(e){ return; }
-    addPlaybackLog("NATIVE", "Android movieproxy → Player เครื่อง • " + resolvedChannel.name);
-    launchAndroidNativePlayer(nativeUrl);
-    return;
-  }
+  // V0.12: no automatic external-player handoff.
+  // resolvePlaybackUrl() below still requests the Worker ticket before playback.
 
   document.getElementById("player-container").style.display = "block";
   forceShowControls();
