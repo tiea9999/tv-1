@@ -2,26 +2,18 @@
 <html lang="th">
 
 <head>
-<!--
-V0.12 STABLE INTERNAL AUTH
-Protected movieproxy flow preserved:
-  /watch?id=CHANNEL -> request /ticket?id=CHANNEL -> signed /watch URL -> playback
-No direct bypass. No channel-list changes in this AUTH-only revision.
-DOOTVZ Clean Start / Remote Smooth / DRM / production Workers unchanged.
--->
-
-<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.4-LONG-WATCH-RETURN-REMOTE-SMOOTH-V0.9-DOOTVZ-CLEAN-START-V0.11: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
+<!-- TIEA 3BB V2.4 STABLE Build 2403: ANALYZER HLS ENGINE + PROJECTOR PICTURE FIX. SAFE/DIAG/LOG BUTTONS REMOVED. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIEA 3BB V0.11 STABLE AUTH ONLY • • VOL80 • SPORT+MOVIE MAIN BACKUP ORDER</title>
+    <title>TIEA 3BB V2.4 STABLE • PROJECTOR BUFFER V0.1</title>
 
     <script src="https://ssl.p.jwpcdn.com/player/v/8.26.0/jwplayer.js"></script>
     <script>
         jwplayer.key = 'XSuP4qMl+9tK17QNb+4+th2Pm9AWgMO/cYH8CI0HGGr7bdjo';
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.10.9/shaka-player.compiled.min.js"></script>
 
     <style>
@@ -63,32 +55,12 @@ DOOTVZ Clean Start / Remote Smooth / DRM / production Workers unchanged.
 }
 </style>
 
-
-<style id="tiea-fast-remote-p53">
-@media (pointer:coarse), (hover:none){
-  .channel{transition:none!important}
-  .channel:hover{box-shadow:none}
-}
-</style>
-
-
-<style id="tiea-remote-smooth-v09">
-/* Projector/Android TV: ลดงานวาดภาพตอนเลื่อนรีโมท */
-@media (pointer:coarse), (hover:none){
-  .channel,.category-btn{transition:none!important;animation:none!important}
-  .channel:hover,.category-btn:hover{box-shadow:none!important}
-  .channel:focus{box-shadow:0 0 0 3px cyan!important;transform:none!important}
-  #channel-list{scroll-behavior:auto!important}
-}
-.channel img{content-visibility:auto}
-</style>
-
 </head>
 
 <body>
 
     <div class="back-home" onclick="goHome()">⬅ กลับหน้าหลัก</div>
-    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • P5.4 • STABLE • REMOTE SMOOTH • DOOTVZ CLEAN START V0.11</h2>
+    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 STABLE • Build 2403 • PROJECTOR BUFFER V0.1</h2>
 
     <div id="player-container">
         <div class="player-controls">
@@ -105,8 +77,6 @@ DOOTVZ Clean Start / Remote Smooth / DRM / production Workers unchanged.
         <div id="jw-player"></div>
         <video id="html5-player" controls autoplay playsinline webkit-playsinline style="display:none;"></video>
         <div id="status" class="status"></div>
-        <div id="lab14-diag" style="display:none;position:absolute;right:14px;bottom:14px;z-index:100005;width:min(520px,calc(100vw - 28px));max-height:62vh;overflow:auto;background:rgba(3,14,24,.97);border:1px solid #00e5ff;border-radius:12px;padding:12px;color:#fff;font:600 12px/1.45 Consolas,monospace;"></div>
-        <div id="playback-log" style="display:none;position:absolute;left:14px;bottom:14px;z-index:100006;width:min(600px,calc(100vw - 28px));max-height:58vh;overflow:auto;background:rgba(12,8,3,.97);border:1px solid orange;border-radius:12px;padding:12px;color:#fff;font:600 12px/1.5 Consolas,monospace;"></div>
     </div>
 
     <div id="category-menu">
@@ -121,220 +91,69 @@ DOOTVZ Clean Start / Remote Smooth / DRM / production Workers unchanged.
 
     <script>
 const WORKER_PROXY = "https://iptv.tawatchai250958.workers.dev/?url=";
-
-// AIS PLAY logo helper — required by AIS PLAY entries below.
-function aisPlayLogo(num){
-  const label = "AIS PLAY " + String(num || "");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="220"><rect width="360" height="220" rx="28" fill="#111"/><rect x="8" y="8" width="344" height="204" rx="22" fill="none" stroke="#eee" stroke-width="5"/><text x="180" y="118" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="34" font-weight="700" fill="#fff">${label}</text></svg>`;
-  return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
-}
-
 const channels = [
-
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901093955069632.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian1",drm:false,group:"กีฬา"},  
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094020069633.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian2",drm:false,group:"กีฬา"},    
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094040069634.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian3",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094102069635.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian4",drm:false,group:"กีฬา"},  
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094213069636.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian5",drm:false,group:"กีฬา"},    
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094243069637.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian6",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094302069638.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian7",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094321069639.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian8",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094341069641.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian9",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094401069640.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian10",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094417069651.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian11",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094435069652.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian12",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094454069653.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian13",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094513069654.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian14",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094534069655.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian15",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094556069656.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian16",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260901094614069657.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian17",drm:false,group:"กีฬา"},
-{name:"AsianGames",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260916093937071863.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asian18",drm:false,group:"กีฬา"},
-
-    
-{name:"MAX3",logo:"https://raw.githubusercontent.com/zaxacaasada/logotv/refs/heads/main/MonomaxSportsTV.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmonomax-sports3%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-{name:"MAX3",logo:"https://raw.githubusercontent.com/zaxacaasada/logotv/refs/heads/main/MonomaxSportsTV.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Fmonomax-sports3%2Fplaylist.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},
-
-{name:"MAX4",logo:"https://raw.githubusercontent.com/zaxacaasada/logotv/refs/heads/main/MonomaxSportsTV.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmonomax-sports4%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-{name:"MAX5",logo:"https://raw.githubusercontent.com/zaxacaasada/logotv/refs/heads/main/MonomaxSportsTV.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmonomax-sports5%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-{name:"MAX6",logo:"https://raw.githubusercontent.com/zaxacaasada/logotv/refs/heads/main/MonomaxSportsTV.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmonomax-sports6%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-{name:"MAX7",logo:"https://raw.githubusercontent.com/zaxacaasada/logotv/refs/heads/main/MonomaxSportsTV.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmonomax-sports7%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax1-2",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax2-2",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax3",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax4",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax5",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax6",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax7",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax8",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax9",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax10",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax11",drm:false,group:"กีฬา"},
-{name:"MONOMAX",logo:"https://tse1.mm.bing.net/th/id/OIP.dYVIDHBYvTJLyZ71jgYpGwHaHa?r=0&rs=1&pid=ImgDetMain&o=7&rm=3",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=monomax12",drm:false,group:"กีฬา"},
-
-{name:"AIS PLAY 41",logo:"https://6395online.com:8443/logotv/ais1/PlaySports41_PEA.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay41",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 51",logo:"https://6395online.com:8443/logotv/monomax/PLAYSPORTS51.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay51",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 53",logo:"https://6395online.com:8443/logotv/monomax/PLAYSPORTS53.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay53",drm:false,group:"กีฬา"},
-
-{name:"AIS PLAY 55",logo:"https://6395online.com:8443/logotv/ais1/1759480097.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay55",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 57",logo:"https://6395online.com:8443/logotv/ais1/S__12214415.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay57",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 58",logo:"https://beta.m-fixer.net/uploads/tv_image/ais-play-8.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay58",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 61",logo:"https://6395online.com:8443/logotv/ais1/BCEED2B6-95D0-4163-84B1-F37AF2B545F9.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay61",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 62",logo:"https://6395online.com:8443/logotv/ais1/S__11984945_0.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay62",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 64",logo:"https://6395online.com:8443/logotv/ais1/S__11984945_0.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay64",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 66",logo:"https://6395online.com:8443/logotv/ais1/1769669214.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay66",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 69",logo:"https://6395online.com:8443/logotv/ais1/S__11984946_0.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay69",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 71",logo:"https://6395online.com:8443/logotv/monomax/1767714588.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay71",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 72",logo:"https://6395online.com:8443/logotv/monomax/1767714685.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay72",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 73",logo:"https://6395online.com:8443/logotv/monomax/1767714751.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay73",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 75",logo:"https://6395online.com:8443/logotv/monomax/1767714751.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay75",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 90",logo:"https://tls3-f.play-rfcdn.ais.th/iptvepg/layout/epg/poster/202606/2606302071781798987837442.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay90",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 91",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260731134749064630.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay91",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 92",logo:"https://beta.m-fixer.net/uploads/tv_image/ais-play-9.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay92",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 93",logo:"https://beta.m-fixer.net/uploads/tv_image/ais-play-9.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay93",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 94",logo:"https://beta.m-fixer.net/uploads/tv_image/ais-play-9.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay94",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 95",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260806091703064654.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay95",drm:false,group:"กีฬา"},
-{name:"AIS PLAY 96",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20260731134957064655.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aisplay96",drm:false,group:"กีฬา"},
-{name:"EUROSPORT M-FIXER",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20250717161338006023.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=eurosport",drm:false,group:"กีฬา"},
-{name:"REAL MADRID TV M-FIXER",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20250814102145019502.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=realmadridtv",drm:false,group:"กีฬา"},
-{name:"mutv",logo:"https://beta.m-fixer.net/uploads/tv_image/mutv.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmutv%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-{name:"MUTV M-FIXER",logo:"https://beta.m-fixer.net/uploads/tv_image/mutv.jpg",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=mutv",drm:false,group:"กีฬา"},
-{name:"lfctv",logo:"https://beta.m-fixer.net/uploads/tv_image/lfc-t6czf365s21e.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Flfctv%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
-{name:"W-SPORT M-FIXER",logo:"https://tr.play-rfcdn.ais.th/iptvepg/images/poster/20250717135007006041.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=wsport",drm:false,group:"กีฬา"},
-    
-    
-{name:"golf channel",logo:"https://www.dropbox.com/scl/fi/3ekiv5abo840gh1i5vj30/xqfFe4EzPS5iJ9ee89bkEpqkxC6RrzMUntitled-2.jpg?rlkey=buxrafcak6qeb4ouru42lvgu1&dl=1",file:"https://d11k1mnrgfposz.cloudfront.net/playlist_1920x1080.m3u8",drm:false,group:"กีฬา"},
-{name:"Golf 2 HD",logo:"https://6395online.com:8443/logotv/sport/golf2.jpg",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=golf",drm:false,group:"กีฬา"},
-{name:"Golf 2 HD",logo:"https://6395online.com:8443/logotv/sport/golf2.jpg",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=golf2",drm:false,group:"กีฬา"},
-
-{name:"tennis",logo:"https://6395online.com:8443/logotv/sport/hd-tennis.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truetennis",drm:false,group:"กีฬา"},
-{name:"tennisสำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-tennis.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truetennis-2",drm:false,group:"กีฬา"},
-{name:"tennisสำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-tennis.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truetennis",drm:false,group:"กีฬา"},  
-
-{name:"tennisplus",logo:"https://www.dropbox.com/scl/fi/mi30clmdx4cdycp77gbjh/tennis-plus.jpg?rlkey=vskrs28u16zgl1o3k949897o2&dl=1",file:"https://amg01935-amg01935c1-amgplt0165.playout.now3.amagi.tv/1080p-cc/index.m3u8",drm:false,group:"กีฬา"},
-
-
-{name:"Bein 1",logo:"https://6395online.com:8443/logotv/sport/bein1.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=bein1",drm:false,group:"กีฬา"},
-{name:"Bein 1สำรอง",logo:"https://6395online.com:8443/logotv/sport/bein1.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=bein1-2",drm:false,group:"กีฬา"},
-{name:"Bein 1สำรอง",logo:"https://6395online.com:8443/logotv/sport/bein1.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fbein1%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},  
-
-{name:"Bein 2",logo:"https://6395online.com:8443/logotv/sport/bein2.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=bein2",drm:false,group:"กีฬา"},
-{name:"Bein 2สำรอง",logo:"https://6395online.com:8443/logotv/sport/bein2.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=bein2-2",drm:false,group:"กีฬา"},
-{name:"Bein 2สำรอง",logo:"https://6395online.com:8443/logotv/sport/bein2.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2bein2%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-
-{name:"Bein 3",logo:"https://6395online.com:8443/logotv/sport/bein3.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=bein3",drm:false,group:"กีฬา"},
-{name:"Bein 3สำรอง",logo:"https://6395online.com:8443/logotv/sport/bein3.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=bein3-2",drm:false,group:"กีฬา"},
-{name:"Bein 3สำรอง",logo:"https://6395online.com:8443/logotv/sport/bein3.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fbein3%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-
-{name:"Spotv1",logo:"https://6395online.com:8443/logotv/sport/hd-spotv.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=spotv1",drm:false,group:"กีฬา"},
-{name:"Spotv1สำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-spotv.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Fspotv%2Fchunks.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},  
-
-{name:"Spotv2",logo:"https://6395online.com:8443/logotv/sport/hd-spotv2.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=spotv2",drm:false,group:"กีฬา"},
-{name:"Spotv2สำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-spotv2.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Fspotv2%2Fchunks.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},    
-
-{name:"TrueSport HD1",logo:"https://6395online.com:8443/logotv/sport/hd-tsport1.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesporthd1",drm:false,group:"กีฬา"},
-{name:"TrueSport HD1สำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-tsport1.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Ftsp1%2Fplaylist.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},
-{name:"TrueSport HD1สำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-tsport1.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp1%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},   
-    
-{name:"TrueSport HD2",logo:"https://6395online.com:8443/logotv/sport/hd-tsport2.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesporthd2",drm:false,group:"กีฬา"},
-{name:"TrueSport HD2สำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-tsport2.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Ftsp2%2Fplaylist.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},
-{name:"TrueSport HD2สำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-tsport2.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp2%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
-
-    
-{name:"TrueSport HD3",logo:"https://6395online.com:8443/logotv/sport/hd-tsport3.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesporthd3",drm:false,group:"กีฬา"},
-{name:"TrueSport HD3สำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-tsport3.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Ftsp3%2Fplaylist.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},
-{name:"TrueSport HD3สำรอง",logo:"https://6395online.com:8443/logotv/sport/hd-tsport3.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp3%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
-    
-{name:"TrueSport 5",logo:"https://6395online.com:8443/logotv/sport/sd-tsport5.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesport5 ",drm:false,group:"กีฬา"},
-{name:"TrueSport 5สำรอง",logo:"https://6395online.com:8443/logotv/sport/sd-tsport5.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Ftsp5%2Fplaylist.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},
-{name:"TrueSport 5สำรอง",logo:"https://6395online.com:8443/logotv/sport/sd-tsport5.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp5%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
-    
-{name:"TrueSport 7",logo:"https://6395online.com:8443/logotv/sport/sd-tsport7.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesport7",drm:false,group:"กีฬา"},
-{name:"TrueSport 7สำรอง",logo:"https://6395online.com:8443/logotv/sport/sd-tsport7.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Ftsp7%2Fplaylist.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},
-{name:"TrueSport 7สำรอง",logo:"https://6395online.com:8443/logotv/sport/sd-tsport7.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp7%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
-
-    
-
-
-{name:"Sport TV 1",logo:"http://apk-x.org/pics/images/jdv1755254495z.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Fsporttv1%2Fchunks.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},
-{name:"Sport TV 2",logo:"http://apk-x.org/pics/images/opt1755254535i.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.amazaa.live%2Fdbl%2Fsporttv2%2Fchunks.m3u8&referer=https%3A%2F%2Fdooballland.com%2F",drm:false,group:"กีฬา"},
-{name:"Sport TV 3",logo:"http://apk-x.org/pics/images/jdv1755254580n.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fsporttv3%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-{name:"Sport TV 4",logo:"http://apk-x.org/pics/images/bwy1755254594f.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fsporttv4%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-{name:"Sport TV 5",logo:"http://apk-x.org/pics/images/arx1755254608l.jpg.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fsporttv5%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
-
-    
-{name:"NBA TV",logo:"https://beta.m-fixer.net/uploads/tv_image/nba-1.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fnba%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},       
-
-{name:"fifa-plus",logo:"https://beta.m-fixer.net/uploads/tv_image/fifa-women-yg0579cgw301.png",file:"https://a62dad94.wurl.com/manifest/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X0ZJRkFQbHVzRW5nbGlzaF9ITFM/e4b5d05f-bf1a-4221-a7dc-764f8522751b/1.m3u8",drm:false,group:"กีฬา"},
-{name:"NBC Sports NOW",logo:"https://nbcsports.brightspotcdn.com/dims4/default/0557931/2147483647/strip/true/crop/3840x2160+0+0/resize/1440x810!/quality/90/?url=https%3A%2F%2Fnbc-sports-production-nbc-sports.s3.us-east-1.amazonaws.com%2Fbrightspot%2Fe4%2F17%2F4c61949740dd9e7b329afdb62f69%2Fnbcsnow-3840x2160.jpg",file:"https://d4whmvwm0rdvi.cloudfront.net/10007/99993008/hls/master.m3u8?ads.xumo_channelId=99993008",drm:false,group:"กีฬา"},
-{name:"TUDN USA",logo:"https://cdn.i.haymarketmedia.asia/?n=campaign-asia%2Fcontent%2FTraceSports.jpg&h=570&w=855&q=100&v=20250320&c=1",file:"https://lightning-tracesport-samsungau.amagi.tv/playlist1080p.m3u8",drm:false,group:"กีฬา"},
-{name:"BEIN SPORTS XTRA",logo:"https://static.wikia.nocookie.net/logopedia/images/b/b6/Xtra.png",file:"https://amg01334-beinsportsllc-beinxtra-localnow-kcy6r.amagi.tv/playlist.m3u8",drm:false,group:"กีฬา"},
-{name:"BEIN SPORTS XTRA n",logo:"https://static.wikia.nocookie.net/logopedia/images/b/b6/Xtra.png",file:"https://bein-esp-xumo.amagi.tv/playlistR1080p.m3u8",drm:false,group:"กีฬา"},
-{name:"DAZN RINGSIDE",logo:"https://assets.goal.com/images/v3/bltde30cb5e2e36ea68/dazn_ringside%20logo.jpg",file:"https://aegis-cloudfront-1.tubi.video/bfad29e2-5bee-44f3-8256-127324e8b106/1080p-cc/index.m3u8",drm:false,group:"กีฬา"},
-{name:"Swerve Combat",logo:"https://swerve.tv/wp-content/uploads/2025/06/Swerve-Combat.png",file:"https://linear-253.frequency.stream/mt/roku/253/hls/master/playlist.m3u8",drm:false,group:"กีฬา"},
-{name:"Speed Sports 1",logo:"https://static.wikia.nocookie.net/logopedia/images/3/39/Speed_Sport_1.webp/revision/latest?cb=20240912190225",file:"https://linear-599.frequency.stream/dist/stirr/599/hls/master/playlist.m3u8",drm:false,group:"กีฬา"},
-
-    
-
-
-
-{name:"TRUESERIESสำรอง",logo:"https://6395online.com:8443/logotv/movie/sd-series.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=trueseries",drm:false},
-{name:"TRUESERIESสำรอง",logo:"https://6395online.com:8443/logotv/movie/sd-series.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=trueseries-2",drm:false},
-
-
-{ name:"True Film Asiaสำรอง",logo:"https://6395online.com:8443/logotv/movie/filmasia.jpg",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truefilmasia",drm:false},
-{ name:"True Film Asiaสำรอง",logo:"https://6395online.com:8443/logotv/movie/filmasia.jpg",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truefilmasia-2",drm:false},
-
-
-{name:"Asian More",logo:"https://6395online.com:8443/logotv/movie/hd-asianmore.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asianmore",drm:false},
-{name:"Asian Moreสำรอง",logo:"https://6395online.com:8443/logotv/movie/hd-asianmore.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asianmore-2",drm:false},
-
-
-{name:"TRUE Thai Film สำรอง",logo:"https://6395online.com:8443/logotv/movie/sd-thaifilm.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truethaifilm",drm:false},
-{name:"TRUE Thai Film สำรอง",logo:"https://6395online.com:8443/logotv/movie/sd-thaifilm.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truethaifilm-2",drm:false},
-
-
-{name:"ccm",logo:"https://6395online.com:8443/logotv/movie/ccm.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=ccm",drm:false},
-
-{name:"AXN",logo:"https://6395online.com:8443/logotv/movie/hd-axn.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=axn",drm:false},
-
-{name:"True Movie Hits",logo:"https://6395online.com:8443/logotv/movie/moviehits.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truemoviehits",drm:false},
-
-    
-{name:"truefilmhd",logo:"https://cms.dmpcdn.com/livetv/2024/01/16/cad78460-b44c-11ee-80bd-b787d7bab688_webp_original.webp",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truefilmhd",drm:false},
-
-{name:"truefilmhd",logo:"https://cms.dmpcdn.com/livetv/2024/01/16/cad78460-b44c-11ee-80bd-b787d7bab688_webp_original.webp",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truefilmhd-2",drm:false},
-    
-{name:"truefilmhd2",logo:"https://6395online.com:8443/logotv/movie/hd-tfilm2.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truefilmhd2",drm:false},
-
-{name:"truefilmhd2สำรอง",logo:"https://6395online.com:8443/logotv/movie/hd-tfilm2.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truefilmhd2-2",drm:false},
-
  
-
-
-
-
-
-
-
-
-
-
-
-
-
-{name:"channel8",logo:"https://www.dropbox.com/scl/fi/0vff7u977tu66akthr8cc/channel8.png?rlkey=h6033d94vgzke6i05gznm20xw&dl=1",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=channel8",drm:false},
+{name:"Monomax 2",logo:"https://ball67.com/assets/channels-logo/monomax-2.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmonomax-2%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},        
+{name:"golf channel",logo:"https://www.dropbox.com/scl/fi/3ekiv5abo840gh1i5vj30/xqfFe4EzPS5iJ9ee89bkEpqkxC6RrzMUntitled-2.jpg?rlkey=buxrafcak6qeb4ouru42lvgu1&dl=1",file:"https://d11k1mnrgfposz.cloudfront.net/playlist_1920x1080.m3u8",drm:false,group:"กีฬา"},    
+{name:"Golf 2 HD",logo:"https://6395online.com:8443/logotv/sport/golf2.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fgolfchannel%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"tennis",logo:"https://6395online.com:8443/logotv/sport/hd-tennis.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truetennis",drm:false,group:"กีฬา"},  
+{name:"True Premier Football 3",logo:"https://dookeela.live/uploads/1664499681.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftpf3%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"True Premier Football 4",logo:"https://dookeela.live/uploads/1664499692.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftpf4%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
+{name:"True Premier Football 5",logo:"https://dookeela.live/uploads/1664499700.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftpf5%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"Bein 1",logo:"https://6395online.com:8443/logotv/sport/bein1.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fbein1%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
+{name:"Bein 2",logo:"https://6395online.com:8443/logotv/sport/bein2.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=bein2",drm:false,group:"กีฬา"},
+{name:"Bein 3",logo:"https://6395online.com:8443/logotv/sport/bein3.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fbein3%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},  
+{name:"Spotv1",logo:"https://6395online.com:8443/logotv/sport/hd-spotv.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fspotv%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
+{name:"Spotv2",logo:"https://6395online.com:8443/logotv/sport/hd-spotv2.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fspotv2%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},        
+{name:"TrueSport HD1",logo:"https://6395online.com:8443/logotv/sport/hd-tsport1.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp1%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},  
+{name:"TrueSport HD2",logo:"https://6395online.com:8443/logotv/sport/hd-tsport2.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp2%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
+{name:"TrueSport HD3",logo:"https://6395online.com:8443/logotv/sport/hd-tsport3.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp3%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"TrueSport 5",logo:"https://6395online.com:8443/logotv/sport/sd-tsport5.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesport5",drm:false,group:"กีฬา"},  
+{name:"TrueSport 7",logo:"https://6395online.com:8443/logotv/sport/sd-tsport7.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftsp7%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},  
+{name:"mutv",logo:"https://dookeela.live/uploads/1665106261.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmutv%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"lfctv",logo:"https://dookeela.live/uploads/1669940282.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Flfctv%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
+{name:"Sport TV 1",logo:"https://dookeela.live/uploads/1663979709.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fsporttv1%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"Sport TV 2",logo:"https://dookeela.live/uploads/1663979801.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fsporttv2%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"Sport TV 3",logo:"https://dookeela.live/uploads/1663980327.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fsporttv3%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"Sport TV 4",logo:"https://dookeela.live/uploads/1664041351.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fsporttv4%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"Sport TV 5",logo:"https://dookeela.live/uploads/1664125991.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fsporttv5%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"FOX Sports 1 ",logo:"https://dookeela.live/uploads/1664219664.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ffoxsports1usa%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"FOX Sports 2 ",logo:"https://dookeela.live/uploads/1673668104.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ffoxsports2usa%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},      
+{name:"NBA TV",logo:"https://dookeela.live/uploads/1664532126.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fnba%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},    
+{name:"NBC Sports NOW",logo:"https://nbcsports.brightspotcdn.com/dims4/default/0557931/2147483647/strip/true/crop/3840x2160+0+0/resize/1440x810!/quality/90/?url=https%3A%2F%2Fnbc-sports-production-nbc-sports.s3.us-east-1.amazonaws.com%2Fbrightspot%2Fe4%2F17%2F4c61949740dd9e7b329afdb62f69%2Fnbcsnow-3840x2160.jpg",file:"https://d4whmvwm0rdvi.cloudfront.net/10007/99993008/hls/master.m3u8?ads.xumo_channelId=99993008",drm:false,group:"กีฬา"},
+{name:"TUDN USA",logo:"https://dookeela.live/uploads/1689987703.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Ftudnusa%2Fchunks.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"กีฬา"},
+{name:"BEIN SPORTS XTRA",logo:"https://static.wikia.nocookie.net/logopedia/images/b/b6/Xtra.png",file:"https://amg01334-beinsportsllc-beinxtra-localnow-kcy6r.amagi.tv/playlist.m3u8",drm:false,group:"กีฬา"},  
+{name:"BEIN SPORTS XTRA n",logo:"https://static.wikia.nocookie.net/logopedia/images/b/b6/Xtra.png",file:"https://bein-esp-xumo.amagi.tv/playlistR1080p.m3u8",drm:false,group:"กีฬา"},    
+{name:"DAZN RINGSIDE",logo:"https://assets.goal.com/images/v3/bltde30cb5e2e36ea68/dazn_ringside%20logo.jpg",file:"https://aegis-cloudfront-1.tubi.video/bfad29e2-5bee-44f3-8256-127324e8b106/1080p-cc/index.m3u8",drm:false,group:"กีฬา"},
+{name:"Swerve Combat",logo:"https://swerve.tv/wp-content/uploads/2025/06/Swerve-Combat.png",file:"https://linear-253.frequency.stream/mt/roku/253/hls/master/playlist.m3u8",drm:false,group:"กีฬา"},  
+{name:"Speed Sports 1",logo:"https://static.wikia.nocookie.net/logopedia/images/3/39/Speed_Sport_1.webp/revision/latest?cb=20240912190225",file:"https://linear-599.frequency.stream/dist/stirr/599/hls/master/playlist.m3u8",drm:false,group:"กีฬา"},   
+{name:"Monoplus",logo:"https://6395online.com:8443/logotv/movie/Mono29p.jpg",file:"https://cco-streamer3.cdn.3bbtv.com:8443/3bb/live/109/109.mpd",keyId:"072eeb02f6744f838fcc8f0ef36b312e",key:"b797c12f2dd64728aae23fd3c8ef275c",drm:true,group:"หนัง"},
+{name:"asia-hits",logo:"https://kicksball.com/img/proxy?u=https%3A%2F%2Fliveplayback.net%2Fuploads%2F1703829940.png&s=402fe16ffd3a",file:"https://cco-streamer1.cdn.3bbtv.com:8443/3bb/live/101/101.mpd",keyId:"dac6cbd9d17a451bb76386f52469e0e9",key:"2e2ac52cadf843459915eaa1a9b95e48",drm:true,group:"หนัง"},
+{name:"HBO",logo:"https://6395online.com:8443/logotv/movie/hd-hbo-thai.png",file:"https://iptv.tawatchai250958.workers.dev/?url=http://tiea1.3bbddns.com:28470/0.m3u8",drm:false,group:"หนัง"},
+{name:"HBO",logo:"https://6395online.com:8443/logotv/movie/hd-hbo-thai.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=hbo",drm:false,group:"หนัง"}, 
+{name:"HBO HITS",logo:"https://6395online.com:8443/logotv/movie/hd-hbo-hit.png",file:"https://iptv.tawatchai250958.workers.dev/?url=http://tiea1.3bbddns.com:28470/4.m3u8",drm:false,group:"หนัง"},
+{name:"hbo-signature",logo:"https://6395online.com:8443/logotv/movie/hbosignature.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=aishbosignature",drm:false,group:"หนัง"},   
+{name:"HBO FAMILY",logo:"https://6395online.com:8443/logotv/movie/hbofamily.png",file:"https://cco-streamer1.cdn.3bbtv.com:8443/3bb/live/106/106.mpd",keyId:"07b138f30ad3441ca5a2f476e550af25",key:"826ee4deef4b45cfafd5f79a591b15c6",drm:true,group:"หนัง"},   
+{name:"cinemax",logo:"https://6395online.com:8443/logotv/movie/cinemax(2).png",file:"https://cri-streamer1.cdn.3bbtv.com:8443/3bb/live/107/107.mpd", keyId:"f48caba466394e93b50780f21798787a",key:"9a074a10db4342e7937076b3e52f6029",drm:true,group:"หนัง"},
+{name:"TRUESERIES",logo:"https://6395online.com:8443/logotv/movie/sd-series.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=trueseries",drm:false}, 
+{ name:"True Film Asia",logo:"https://6395online.com:8443/logotv/movie/filmasia.jpg",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truefilmasia",drm:false}, 
+{name:"Asian More",logo:"https://6395online.com:8443/logotv/movie/hd-asianmore.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asianmore",drm:false}, 
+{name:"TRUE Thai Film ",logo:"https://6395online.com:8443/logotv/movie/sd-thaifilm.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truethaifilm",drm:false}, 
+{name:"ccm",logo:"https://6395online.com:8443/logotv/movie/ccm.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=ccm",drm:false}, 
+{name:"AXN",logo:"https://6395online.com:8443/logotv/movie/hd-axn.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=axn",drm:false}, 
+{name:"True Movie Hits",logo:"https://6395online.com:8443/logotv/movie/moviehits.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truemoviehits",drm:false},
+{name:"truefilmhd",logo:"https://6395online.com:8443/logotv/movie/hd-tfilm.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truefilmhd",drm:false},     
+{name:"warner",logo:"https://6395online.com:8443/logotv/movie/hd-warnertv.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=warner",drm:false},     
 {name:"dreamworks",logo:"https://6395online.com:8443/logotv/movie/hd-dreamworks.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=dreamworks",drm:false},
-{name:"dreamworksสำรอง",logo:"https://6395online.com:8443/logotv/movie/hd-dreamworks.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=dreamworks-2",drm:false},
-
-    
- {name:"test",logo:"https://dl.dropboxusercontent.com/scl/fi/k77ovxc35qm0girjo43mt/logo.png?rlkey=1x7w8nk1fl6gptnt9jiaugt54",file:"https://iptv.tawatchai250958.workers.dev/?url=http%3A%2F%2Fdootvz.ddns.net%3A25461%2Flive%2Fskycos3%2Faa2233%2F132.m3u8&referer=http%3A%2F%2Fdootvz.ddns.net%3A25461%2F",drm:false,group:"ดิจิตอล"},   
-
+{name:"TRUEWILD",logo:"https://6395online.com:8443/logotv/discovery/sd-expwild.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truewild",drm:false},    
+{name:"TRUESCI",logo:"https://6395online.com:8443/logotv/discovery/sd-expsci.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesci",drm:false},    
+{name:"Discovery",logo:"https://6395online.com:8443/logotv/discovery/sd-discovery.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=discovery",drm:false},    
+{name:"discovery-asia",logo:"https://6395online.com:8443/logotv/discovery/hd-discovery.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=discoveryasia",drm:false},
+{name:"Food Network",logo:"https://upload.wikimedia.org/wikipedia/commons/f/f4/Food_Network_-_Logo_2016.png",file:"https://cco-streamer1.cdn.3bbtv.com:8443/3bb/live/205/205.mpd",keyId:"d4b9d55410d24905920e57664a047116",key:"d821110f280f4545ae0227d5784af199",drm:true,group:"หนัง"},
 {name:"TV5HD",logo:"https://6395online.com:8443/logotv/freetv/hd-ch5.png",file:"https://cri-streamer3.cdn.3bbtv.com:8443/3bb/live/5/5.mpd",keyId:"87db4361f7894655a4656e9c8b935a02",key:"b025a4b950df41158a87cfc8d6f2ac34",drm:true,group:"ดิจิตอล"},
 {name:"NBT",logo:"https://6395online.com:8443/logotv/freetv/sd-nbt.png",file:"https://cdn-edge.iiptvcdn.com/live_event/smil:f180-054a-38d7-ce66-f7cf.smil/playlist.m3u8",drm:false,group:"ดิจิตอล"},
 {name:"ThaiPBS",logo:"https://6395online.com:8443/logotv/freetv/hd-tpbs.png",file:"https://thaipbs-ophctt.cdn.byteark.com/live/playlist.m3u8",drm:false,group:"ดิจิตอล"},
-
 {name:"T-SPorts 7",logo:"https://mainstand.co.th/storage/news/4968_Tsports7.jpg",file:"https://cri-streamer3.cdn.3bbtv.com:8443/3bb/live/7/7.mpd",keyId:"6187523f92b9475bb5b192f70cef1342",key:"5119311f482144d58dacabc5bc1fa4ba",drm:true,group:"กีฬา"},
-
 {name:"TPTV",logo:"https://6395online.com:8443/logotv/freetv/sd-tptv.png",file:"https://cri-streamer3.cdn.3bbtv.com:8443/3bb/live/10/10.mpd",keyId:"5da46688fd1e4ed5b085a12519b9dc4e",key:"fd07bcf33823447180f53f6540f74ccb",drm:true,group:"ดิจิตอล"},
 {name:"TNN16",logo:"https://6395online.com:8443/logotv/freetv/sd-tnn24.png",file:"https://cri-streamer3.cdn.3bbtv.com:8443/3bb/live/16/16.mpd",keyId:"9ebedc957e934d2b9023e4e60b97af73",key:"7bcb4363df74457bbafedec1a864e6b6",drm:true,group:"ดิจิตอล"},
 {name:"Nation22",logo:"https://6395online.com:8443/logotv/freetv/sd-nation.png",file:"https://cri-streamer3.cdn.3bbtv.com:8443/3bb/live/22/22.mpd",keyId:"87db4361f7894655a4656e9c8b935a02",key:"b025a4b950df41158a87cfc8d6f2ac34",drm:true,group:"ดิจิตอล"},
@@ -351,58 +170,13 @@ const channels = [
 {name:"AmarinTV",logo:"https://6395online.com:8443/logotv/freetv/amarintv.png",file:"https://cri-streamer3.cdn.3bbtv.com:8443/3bb/live/34/34.mpd",keyId:"4d4426a505f64382a9841155d721cee6",key:"0f4770219ccb4be5836a7517057e51c3",drm:true,group:"ดิจิตอล"},
 {name:"PPTV",logo:"https://6395online.com:8443/logotv/freetv/hd-pptv.png",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fpptv%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"ดิจิตอล"},
 {name:"topnews",logo:"https://6395online.com:8443/logotv/freetv/hd-topnews.png",file:"https://live.topnews.co.th/hls/topnews_a_720.m3u8",drm:false,group:"ดิจิตอล"},
-
-{name:"Monoplus",logo:"https://6395online.com:8443/logotv/movie/Mono29p.jpg",file:"https://cco-streamer3.cdn.3bbtv.com:8443/3bb/live/109/109.mpd",keyId:"072eeb02f6744f838fcc8f0ef36b312e",key:"b797c12f2dd64728aae23fd3c8ef275c",drm:true,group:"หนัง"},
-{name:"Monoplusสำรอง",logo:"https://6395online.com:8443/logotv/movie/Mono29p.jpg",file:"https://iptv.tawatchai250958.workers.dev/?url=https%3A%2F%2Fcdn1.googlecdnforstreaming.live%2Flive%2Fmono29plus%2Fplaylist.m3u8&referer=https%3A%2F%2Fwarpdooball.net%2F",drm:false,group:"หนัง"},
-{name:"asia-hits",logo:"https://beta.m-fixer.net/uploads/tv_image/asian-hits.png",file:"https://cco-streamer1.cdn.3bbtv.com:8443/3bb/live/101/101.mpd",keyId:"dac6cbd9d17a451bb76386f52469e0e9",key:"2e2ac52cadf843459915eaa1a9b95e48",drm:true,group:"หนัง"},
-{name:"asia-hits",logo:"https://beta.m-fixer.net/uploads/tv_image/asian-hits.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=asianhits",drm:false,group:"หนัง"},
-
-
-// ===== M-FIXER DIRECT CHANNELS (ADDED ONLY; ORIGINAL CHANNELS PRESERVED) =====
-
-{name:"HBO",logo:"https://6395online.com:8443/logotv/movie/hd-hbo-thai.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=hbo",drm:false,group:"หนัง"},
-{name:"HBO",logo:"https://6395online.com:8443/logotv/movie/hd-hbo-thai.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=hbo2",drm:false,group:"หนัง"},
-{name:"HBO SIGNATURE M-FIXER",logo:"https://6395online.com:8443/logotv/movie/hbosignature.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=hbosignature",drm:false,group:"หนัง"},
-{name:"HBO SIGNATURE ",logo:"https://6395online.com:8443/logotv/movie/hbosignature.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=hbosignature2",drm:false,group:"หนัง"},
-{name:"CINEMAX M-FIXER",logo:"https://6395online.com:8443/logotv/movie/cinemax(2).png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=cinemax",drm:false,group:"หนัง"},
-{name:"cinemax",logo:"https://6395online.com:8443/logotv/movie/cinemax(2).png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=cinemax2",drm:false,group:"หนัง"},
-{name:"HBO FAMILY",logo:"https://6395online.com:8443/logotv/movie/hbofamily.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=hbofamily",drm:false,group:"หนัง"},
-{name:"HBO FAMILY",logo:"https://6395online.com:8443/logotv/movie/hbofamily.png",file:"https://cco-streamer1.cdn.3bbtv.com:8443/3bb/live/106/106.mpd",keyId:"07b138f30ad3441ca5a2f476e550af25",key:"826ee4deef4b45cfafd5f79a591b15c6",drm:true,group:"หนัง"},
-{name:"HBO HITS",logo:"https://6395online.com:8443/logotv/movie/hd-hbo-hit.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=hbohits",drm:false,group:"หนัง"},
-{name:"HBO HITS",logo:"https://6395online.com:8443/logotv/movie/hd-hbo-hit.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=hbohits2",drm:false,group:"หนัง"},
-{name:"warner",logo:"https://6395online.com:8443/logotv/movie/hd-warnertv.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=warner",drm:false},
-{name:"BLUEANT action",logo:"https://goodiptv.site/images/tv/wwS1fmIzbe3hHMGMzLdEqvJd09D7zX320240418201014RockAction.jpg",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=action",drm:false},
-{name:"BLUEANT EXTREME",logo:"https://goodiptv.site/images/tv/LL7QT6AMe22XIkCzWGa0FseaXQrS0Mp20240418201026RockEnterment.jpg",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=action",drm:false},
-
-{name:"TRUEWILD",logo:"https://6395online.com:8443/logotv/discovery/sd-expwild.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truewild",drm:false},
-{name:"TRUEWILDสำรอง",logo:"https://6395online.com:8443/logotv/discovery/sd-expwild.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truewild-2",drm:false},
-
-
-    
-{name:"TRUESCI",logo:"https://6395online.com:8443/logotv/discovery/sd-expsci.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesci",drm:false},
-{name:"TRUESCIสำรอง",logo:"https://6395online.com:8443/logotv/discovery/sd-expsci.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=truesci-2",drm:false},
-{name:"history",logo:"https://6395online.com:8443/logotv/discovery/hd-history.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=history",drm:false},
-{name:"Discovery",logo:"https://6395online.com:8443/logotv/discovery/sd-discovery.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=discovery",drm:false},
-{name:"DISCOVERY M-FIXER",logo:"https://6395online.com:8443/logotv/discovery/sd-discovery.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=discovery",drm:false,group:"หนัง"},
-{name:"discovery-asia",logo:"https://6395online.com:8443/logotv/discovery/hd-discovery.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=discoveryasia",drm:false},
-{name:"discovery-asiaสำรอง",logo:"https://6395online.com:8443/logotv/discovery/hd-discovery.png",group:"หนัง",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=discoveryasia-2",drm:false},
-{name:"Food Network",logo:"https://upload.wikimedia.org/wikipedia/commons/f/f4/Food_Network_-_Logo_2016.png",file:"https://cco-streamer1.cdn.3bbtv.com:8443/3bb/live/205/205.mpd",keyId:"d4b9d55410d24905920e57664a047116",key:"d821110f280f4545ae0227d5784af199",drm:true,group:"หนัง"},
-
-
-{name:"สำรวจโลก M-FIXER",logo:"https://beta.m-fixer.net/uploads/tv_image/sumlojlok.jpg",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=sumlojlok",drm:false,group:"หนัง"},
-{name:"THAINESS M-FIXER",logo:"https://beta.m-fixer.net/uploads/tv_image/thainess.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=thainess",drm:false,group:"หนัง"},
-{name:"ANIMAL SHOW M-FIXER",logo:"https://beta.m-fixer.net/uploads/tv_image/animal-showhd-pnt800diz0vq.jfif",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=animalshow",drm:false,group:"หนัง"},
-{name:"MY SCI M-FIXER",logo:"https://beta.m-fixer.net/uploads/tv_image/my-sci.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=mysci",drm:false,group:"หนัง"},
-{name:"TLC M-FIXER",logo:"https://beta.m-fixer.net/uploads/tv_image/tlc-hd-z83zo022sfa3.jpg",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=tlc",drm:false,group:"หนัง"},
-{name:"CARTOON NETWORK M-FIXER",logo:"https://6395online.com:8443/logotv/cartoon/sd-cartoonnetwork.png",file:"https://movieproxy.tawatchai250958.workers.dev/watch?id=cartoonnetwork",drm:false,group:"การ์ตูน"},
 {name:"CARTOON NETWORK",logo:"https://6395online.com:8443/logotv/cartoon/sd-cartoonnetwork.png",file:"https://udn-streamer1.cdn.3bbtv.com:8443/3bb/live/301/301.mpd",keyId:"f140b94c73ab4ef5b96da7f49afb1154",key:"85e4ef232c6e460f888eb20f651d66e3",drm:true,group:"การ์ตูน"},
 {name:"CARTOONITO",logo:"https://payload.cargocollective.com/1/5/164819/2525962/prt_1326647131.jpg",file:"https://udn-streamer1.cdn.3bbtv.com:8443/3bb/live/302/302.mpd",keyId:"ad2371259d34404cb89d54a4dc88dcd3",key:"1ba155e345c4456ba891cbee9b3e1c4c",drm:true,group:"การ์ตูน"},
 {name:"NICKELODEON",logo:"https://6395online.com:8443/logotv/cartoon/nickelodeon.png",file:"https://udn-streamer1.cdn.3bbtv.com:8443/3bb/live/303/303.mpd",keyId:"9130a6448a74430794d355b48b56a64c",key:"c2f4d3288cdb43cf81e519ceb414dd6f",drm:true,group:"การ์ตูน"},
 {name:"NICK JR",logo:"https://6395online.com:8443/logotv/cartoon/sd-nickjr.png",file:"https://udn-streamer1.cdn.3bbtv.com:8443/3bb/live/304/304.mpd",keyId:"641c3f0e676d49d18c2082e093380e69",key:"e06f3a2e327643249c3831ab199c4015",drm:true,group:"การ์ตูน"},
 {name:"Mr.Bean",logo:"https://i.postimg.cc/yWqNWZf5/Mr-Bean.png",file:"https://amg00627-amg00627c30-rakuten-es-3990.playouts.now.amagi.tv/playlist/amg00627-banijayfast-mrbeanescc-rakutenes/playlist.m3u8",drm:false,group:"การ์ตูน"},
-{name:"PBS Kids",logo:"https://i.postimg.cc/HkkPhhWS/pbskids.png",file:"https://2-fss-2.streamhoster.com/pl_140/amlst:200914-1298290/playlist.m3u8",drm:false,group:"การ์ตูน"},
+{name:"PBS Kids",logo:"https://i.postimg.cc/HkkPhhWS/pbskids.png",file:"https://2-fss-2.streamhoster.com/pl_140/amlst:200914-1298290/playlist.m3u8",drm:false,group:"การ์ตูน"}
 ];
-
 
 
 let currentHls = null;
@@ -437,11 +211,10 @@ let audioOnlyTimer = null;
 let audioOnlyRetryDone = false;
 let selectedSafeLevel = -1;
 const VOLUME_PROFILE = {
-  // TIEA 3BB: default browser-player volume = 80%
-  mpd: 0.80,
-  movieproxy: 0.80,
-  iptvworker: 0.80,
-  otherHls: 0.80
+    mpd: 0.70,
+    movieproxy: 1.00,
+    iptvworker: 1.00,
+    otherHls: 1.00
 };
 
 function sourceVolume(url){
@@ -607,8 +380,7 @@ async function switchToNextServer(reason){
   currentServerName =
     activeOriginalChannel.servers?.[activeServerIndex]?.name ||
     ("Backup " + activeServerIndex);
-  try{ activeUrl = proxyUrl(await resolvePlaybackUrl(next.file)); }
-  catch(e){ return false; }
+  activeUrl = proxyUrl(next.file);
   audioOnlyRetryDone = false;
   selectedSafeLevel = -1;
 
@@ -756,91 +528,10 @@ function setStatus(text, autoHide=true){
   }
 }
 
-
-function tieaLogoUrl(url){
-  try{
-    const u=new URL(String(url||""));
-    if(u.hostname.toLowerCase()==="6395online.com" &&
-       (!u.port || u.port==="8443") &&
-       /^\/logotv\//i.test(u.pathname)){
-      return "https://iptv.tawatchai250958.workers.dev/logo?url="+encodeURIComponent(u.href);
-    }
-  }catch(e){}
-  return url||"";
-}
-
-const MOVIEPROXY_BASE = "https://movieproxy.tawatchai250958.workers.dev";
-
-// V2.4H3 TICKET STABLE: one signed ticket per channel session.
-// Reuse the same signed /watch URL until it is close to expiry.
-const movieProxyTicketCache = new Map();
-let movieProxySessionId = "";
-
-function clearMovieProxyTicketSession(){
-  movieProxyTicketCache.clear();
-  movieProxySessionId = "";
-}
-
-function isMovieProxyWatch(url){
-  try{
-    const u = new URL(String(url || ""));
-    return u.origin === MOVIEPROXY_BASE && u.pathname === "/watch" && !!u.searchParams.get("id");
-  }catch(e){ return false; }
-}
-
-async function getMovieProxyTicketUrl(url){
-  if(!isMovieProxyWatch(url)) return url;
-  const src = new URL(url);
-  const id = (src.searchParams.get("id") || "").trim();
-  const now = Math.floor(Date.now()/1000);
-  const cached = movieProxyTicketCache.get(id);
-  if(cached && cached.url && cached.exp > now + 45){
-    addPlaybackLog("TICKET", "ใช้ Ticket เดิม • " + id);
-    return cached.url;
-  }
-
-  const ticketUrl = MOVIEPROXY_BASE + "/ticket?id=" + encodeURIComponent(id);
-  const res = await fetch(ticketUrl, {method:"GET", cache:"no-store"});
-  if(!res.ok) throw new Error("TICKET HTTP " + res.status);
-  const raw = await res.text();
-  let signed = "", exp = 0;
-  try{
-    const data = JSON.parse(raw);
-    signed = data.url || data.watch || data.signedUrl || data.signed_url || data.playUrl || data.play_url || "";
-    exp = Number(data.expires || data.exp || 0) || 0;
-  }catch(e){
-    signed = raw.trim();
-  }
-  if(!signed || !/^https?:\/\//i.test(signed)) throw new Error("TICKET URL INVALID");
-  if(!exp){
-    try{ exp = Number(new URL(signed).searchParams.get("exp") || 0) || 0; }catch(e){}
-  }
-  if(!exp) exp = now + 540;
-  movieProxyTicketCache.set(id, {url:signed, exp});
-  addPlaybackLog("TICKET", "ออก Ticket ใหม่ • " + id);
-  return signed;
-}
-
-async function resolvePlaybackUrl(url){
-  try{
-    return await getMovieProxyTicketUrl(url);
-  }catch(e){
-    addPlaybackLog("TICKET", "ขอ Ticket ไม่สำเร็จ • " + (e?.message || e));
-    setStatus("ขอสิทธิ์เล่นจาก Worker ไม่สำเร็จ", false);
-    throw e;
-  }
-}
-
 function proxyUrl(url){
   // ลิงก์ workers.dev เล่นตรง ห้าม proxy ซ้อน
   return url;
 }
-
-// V0.12 INTERNAL ONLY:
-// Automatic Android/native handoff is disabled.
-// Protected channels still obtain a signed Worker ticket before internal playback.
-function isAndroidNativeTarget(){ return false; }
-function launchAndroidNativePlayer(url){ return openExternal(url); }
 
 const FAST_WARM_URLS = [
   "https://iptv.tawatchai250958.workers.dev/?url=http://tiea1.3bbddns.com:28470/0.m3u8"
@@ -864,19 +555,38 @@ function forceAudio100(){
   applyBalancedVolume(activeUrl);
 }
 
-async function openExternal(url){
-  url = url || (activeChannel ? activeChannel.file : "") || activeUrl;
+function openExternal(url){
+  url = url || activeUrl || (activeChannel ? activeChannel.file : "");
   if(!url) return;
-  try{ url = proxyUrl(await resolvePlaybackUrl(url)); activeUrl = url; }catch(e){ return; }
-  document.getElementById("player-container").style.display = "block";
-  forceShowControls();
-  await stopAllPlayers();
-  if(url.includes(".mpd")) playMPDNotice(activeChannel, url);
-  else useHLS_STABLE(url);
+  try{
+    const u = new URL(url);
+    const scheme = u.protocol.replace(":","");
+    const hostPath = u.host + u.pathname + (u.search || "");
+    const intent = "intent://" + hostPath +
+      "#Intent;scheme=" + scheme +
+      ";action=android.intent.action.VIEW;type=video/*;S.browser_fallback_url=" +
+      encodeURIComponent(url) + ";end";
+    window.location.href = intent;
+  }catch(e){
+    window.location.href = url;
+  }
 }
 
-async function openMX(url){
-  return openExternal(url);
+function openMX(url){
+  url = url || activeUrl || (activeChannel ? activeChannel.file : "");
+  if(!url) return;
+  try{
+    const u = new URL(url);
+    const scheme = u.protocol.replace(":","");
+    const hostPath = u.host + u.pathname + (u.search || "");
+    const intent = "intent://" + hostPath +
+      "#Intent;scheme=" + scheme +
+      ";action=android.intent.action.VIEW;type=video/*;package=com.mxtech.videoplayer.ad;S.browser_fallback_url=" +
+      encodeURIComponent(url) + ";end";
+    window.location.href = intent;
+  }catch(e){
+    window.location.href = url;
+  }
 }
 
 async function stopAllPlayers(){
@@ -937,57 +647,7 @@ function firstChannelUrl(channel){
   return resolved ? resolved.file : "";
 }
 
-function remember3BBState(){
-  try{
-    const activeBtn = document.querySelector(".category-btn.active");
-    const group = activeBtn ? activeBtn.getAttribute("data-group") : "ดิจิตอล";
-    sessionStorage.setItem("tiea3bb_return_group", group || "ดิจิตอล");
-    sessionStorage.setItem("tiea3bb_return_scroll", String(window.scrollY || 0));
-  }catch(e){}
-}
-
-function restore3BBState(){
-  try{
-    const group = sessionStorage.getItem("tiea3bb_return_group");
-    const scrollY = Number(sessionStorage.getItem("tiea3bb_return_scroll") || "0");
-    if(group){
-      const btn = [...document.querySelectorAll(".category-btn")]
-        .find(b => b.getAttribute("data-group") === group);
-      if(btn) btn.click();
-    }
-    setTimeout(()=>window.scrollTo(0, scrollY), 250);
-  }catch(e){}
-}
-
-function isPlusServerEntry(url){
-  try{
-    const u = new URL(String(url || ""));
-    return u.hostname.toLowerCase() === "api.plus-server.sbs" &&
-           /\/play\.php$/i.test(u.pathname);
-  }catch(e){
-    return false;
-  }
-}
-
-function openPlusServerDirect(url){
-  if(!url) return;
-  remember3BBState();
-  try{
-    const u = new URL(url);
-    u.searchParams.set("_", Date.now());
-    // เปิดเป็นหน้า Browser จริงเหมือนตัวที่ Auto Play ได้
-    window.location.href = u.href;
-  }catch(e){
-    window.location.href = url;
-  }
-}
-
 async function loadChannel(channel, element){
-  const nextSessionId = String(channel?.file || channel?.name || "");
-  if(movieProxySessionId !== nextSessionId){
-    clearMovieProxyTicketSession();
-    movieProxySessionId = nextSessionId;
-  }
   activeOriginalChannel = channel;
   activeServerIndex = 0;
   serverFailureCount = 0;
@@ -1010,27 +670,14 @@ async function loadChannel(channel, element){
 
   document.querySelectorAll(".channel").forEach(ch=>ch.classList.remove("active"));
   if(element) element.classList.add("active");
-  // V0.12: no automatic external-player handoff.
-  // resolvePlaybackUrl() below still requests the Worker ticket before playback.
 
   document.getElementById("player-container").style.display = "block";
   forceShowControls();
   await stopAllPlayers();
 
-  let url;
-  try{ url = proxyUrl(await resolvePlaybackUrl(resolvedChannel.file)); }
-  catch(e){ return; }
+  const url = proxyUrl(resolvedChannel.file);
   activeUrl = url;
   addPlaybackLog("OPEN", "เริ่มเปิด " + currentServerName + " • " + url);
-
-  // PLUS-SERVER SPECIAL:
-  // เปิด play.php เป็นหน้าหลักของ Browser เพื่อให้ต้นทางสร้าง session สด
-  // และแสดงปุ่ม ▶ ของต้นทางให้ผู้ใช้กดเอง (ไม่ส่งเข้า HLS.js / Worker)
-  if(isPlusServerEntry(url)){
-    setStatus("กำลังเปิด Monomax 1 แบบ Browser Direct...", true);
-    openPlusServerDirect(url);
-    return;
-  }
 
   if(url.includes(".mpd")){
     playMPDNotice(resolvedChannel, url);
@@ -1120,15 +767,6 @@ function playMPDNotice(channel, url){
 }
 
 /* ================= HLS ANALYZER ENGINE LAB ================= */
-
-function tieaIsDootvzV09(url){
-  try{
-    const s=decodeURIComponent(String(url||""));
-    return s.includes("dootvz.ddns.net:25461") ||
-           s.includes("m-test.tawatchai250958.workers.dev/dootvz");
-  }catch(e){ return String(url||"").includes("dootvz"); }
-}
-
 function useHLS_STABLE(url){
   const video = document.getElementById("html5-player");
   const jwBox = document.getElementById("jw-player");
@@ -1158,36 +796,49 @@ function useHLS_STABLE(url){
     setStatus("กำลังโหลดด้วย Analyzer Engine...");
     addPlaybackLog("ENGINE", "เริ่ม HLS แบบเดียวกับ TIEA Stream Analyzer");
 
-    currentHls = new Hls(tieaIsDootvzV09(url) ? {
-      enableWorker:true,
-      lowLatencyMode:false,
-      autoStartLoad:true,
-      startFragPrefetch:true,
-      liveSyncDurationCount:6,
-      liveMaxLatencyDurationCount:12,
-      maxBufferLength:60,
-      maxMaxBufferLength:90,
-      backBufferLength:20,
-      manifestLoadingTimeOut:20000,
-      levelLoadingTimeOut:20000,
-      fragLoadingTimeOut:30000,
-      manifestLoadingMaxRetry:4,
-      levelLoadingMaxRetry:4,
-      fragLoadingMaxRetry:6,
-      manifestLoadingRetryDelay:1000,
-      levelLoadingRetryDelay:1000,
-      fragLoadingRetryDelay:1000
-    } : {
-      enableWorker:true,
-      lowLatencyMode:false,
-      autoStartLoad:true,
-      startFragPrefetch:true,
-      backBufferLength:30,
-      maxBufferLength:45,
-      maxMaxBufferLength:90,
-      fragLoadingMaxRetry:8,
-      manifestLoadingMaxRetry:5,
-      levelLoadingMaxRetry:5
+    // Build 2403: googlecdnforstreaming Worker HLS fix.
+    // The Worker playlist can contain child/segment URLs that must continue
+    // through the same Worker + referer. Rewrite every HLS request here.
+    const workerBase = "https://iptv.tawatchai250958.workers.dev/?url=";
+    let inheritedReferer = "";
+    try{ inheritedReferer = new URL(url).searchParams.get("referer") || ""; }catch(e){}
+    const isTieaWorkerHls = url.startsWith(workerBase) && /googlecdnforstreaming\.live/i.test(url);
+
+    function tieaRewriteHlsRequest(requestUrl){
+      if(!isTieaWorkerHls || !requestUrl) return requestUrl;
+      if(requestUrl.startsWith(workerBase)) return requestUrl;
+      if(!/^https?:\/\//i.test(requestUrl)) return requestUrl;
+      return workerBase + encodeURIComponent(requestUrl) +
+        (inheritedReferer ? "&referer=" + encodeURIComponent(inheritedReferer) : "");
+    }
+
+    class TieaWorkerLoader extends Hls.DefaultConfig.loader {
+      load(context, config, callbacks){
+        context.url = tieaRewriteHlsRequest(context.url);
+        super.load(context, config, callbacks);
+      }
+    }
+
+    currentHls = new Hls({
+      loader: TieaWorkerLoader,
+      enableWorker: true,
+      lowLatencyMode: false,
+      autoStartLoad: true,
+      startFragPrefetch: true,
+      // PROJECTOR BUFFER V0.1: give Android/Projector more runway; PC path remains the same engine.
+      backBufferLength: 20,
+      maxBufferLength: 60,
+      maxMaxBufferLength: 90,
+      liveSyncDurationCount: 6,
+      liveMaxLatencyDurationCount: 12,
+      fragLoadingTimeOut: 20000,
+      fragLoadingMaxRetry: 8,
+      fragLoadingRetryDelay: 700,
+      fragLoadingMaxRetryTimeout: 12000,
+      manifestLoadingTimeOut: 15000,
+      manifestLoadingMaxRetry: 5,
+      levelLoadingTimeOut: 15000,
+      levelLoadingMaxRetry: 5
     });
 
     currentHls.attachMedia(video);
@@ -1258,8 +909,7 @@ async function restartCurrent(){
   if(!resolved || !resolved.file) return;
 
   activeChannel = lab14ApplyExistingMatch(resolved);
-  try{ activeUrl = proxyUrl(await resolvePlaybackUrl(activeChannel.file)); }
-  catch(e){ return; }
+  activeUrl = proxyUrl(activeChannel.file);
   audioOnlyRetryDone = false;
   selectedSafeLevel = -1;
   await stopAllPlayers();
@@ -1328,7 +978,7 @@ async function closePlayer(){
 }
 
 function goHome(){
-  window.location.href = "https://tiea9999.github.io/tv-1/index.html";
+  window.location.href = "https://tiea9999.github.io/tv/index.html";
 }
 
 document.addEventListener("keydown",function(e){
@@ -1350,11 +1000,6 @@ document.addEventListener("keydown",function(e){
 let currentCategory = "ดิจิตอล";
 function renderCategory(group){
   currentCategory=group;
-  // P5.4 LONG-WATCH RETURN: persist category even if Android kills/reloads this page.
-  try{ localStorage.setItem("tiea3bb_last_group", group || "ดิจิตอล"); }catch(e){}
-  // P5.2: remember selected category continuously.
-  // This does not touch the native-player launch path.
-  try{ sessionStorage.setItem("tiea3bb_selected_group", group || "ดิจิตอล"); }catch(e){}
   document.querySelectorAll(".category-btn").forEach(btn=>btn.classList.toggle("active",btn.dataset.group===group));
   document.getElementById("category-title").textContent="หมวด: "+group;
   const listContainer=document.getElementById("channel-list");
@@ -1364,11 +1009,10 @@ function renderCategory(group){
     const div=document.createElement("div");
     div.className="channel";
     div.tabIndex=0;
-    div.innerHTML=`<img src="${tieaLogoUrl(ch.logo)}" loading="lazy" onerror="this.onerror=null;this.src='${ch.logo}'"><span>${ch.name}</span>`;
+    div.innerHTML=`<img src="${ch.logo}" loading="lazy"><span>${ch.name}</span>`;
     div.onclick=()=>loadChannel(ch,div);
-    // FAST REMOTE P5.3: ห้ามยิง network warm-up ตอนรีโมทเลื่อน focus
-    // เมาส์ PC ยัง warm ได้แบบเดิม
-    div.onmouseenter=()=>{ if(!isAndroidNativeTarget()) warmStream(firstChannelUrl(ch)); };
+    div.onfocus=()=>warmStream(firstChannelUrl(ch));
+    div.onmouseenter=()=>warmStream(firstChannelUrl(ch));
     div.onkeydown=e=>{if(e.key==="Enter"||e.key==="OK"||e.key===" "){e.preventDefault();loadChannel(ch,div);}};
     listContainer.appendChild(div);
   });
@@ -1390,351 +1034,10 @@ document.addEventListener("DOMContentLoaded",function(){
   setupForceAutoHide();
   const safeBtn=document.getElementById("safeModeBtn"); if(safeBtn) safeBtn.textContent="📽 SAFE ON";
   setupCategoryMenu();
-  let startGroup="ดิจิตอล";
-  try{
-    const durableGroup=localStorage.getItem("tiea3bb_last_group");
-    if(durableGroup==="ดิจิตอล"||durableGroup==="หนัง"||durableGroup==="กีฬา"||durableGroup==="การ์ตูน"||durableGroup==="ทั้งหมด"){
-      startGroup=durableGroup;
-    }
-  }catch(e){}
-  try{
-    const saved=sessionStorage.getItem("tiea3bb_selected_group");
-    if(saved==="ดิจิตอล"||saved==="หนัง"||saved==="กีฬา"||saved==="การ์ตูน"||saved==="ทั้งหมด"){
-      startGroup=saved;
-    }
-  }catch(e){}
-  renderCategory(startGroup);
-  // FAST REMOTE P5.3: projector/Android ไม่ยิง warm-up ตอนเปิดหน้า
-  if(!isAndroidNativeTarget()) startFastWarmup();
+  renderCategory("ดิจิตอล");
+  startFastWarmup();
 });
     </script>
-
-
-<script>
-window.addEventListener("pageshow", function(){
-  // P5.2: category is restored during DOMContentLoaded.
-  // Here restore only the old list position; do not click category buttons.
-  try{
-    const y=Number(sessionStorage.getItem("tiea3bb_return_scroll")||"0");
-    setTimeout(()=>window.scrollTo(0,y),250);
-  }catch(e){}
-});
-</script>
-
-
-<script id="tiea-projector-low-memory-2407">
-(function(){
-"use strict";
-window.TIEA_PROJECTOR_LOW_MEMORY_BUILD="064927-2407";
-
-/* ลด log ที่สะสม */
-function trimLogs(){
-  ["log","diagLog","debugLog","safeDiagLog","statusLog","diag-log","debug-log"].forEach(function(id){
-    var e=document.getElementById(id);
-    if(!e)return;
-    while(e.children && e.children.length>24)e.removeChild(e.firstChild);
-    var t=e.textContent||"";
-    if(t.length>5000)e.textContent=t.slice(-3000);
-  });
-}
-setInterval(trimLogs,45000);
-
-/* ลด console traffic จาก HLS */
-(function(){
-  var cl=console.log.bind(console);
-  console.log=function(){
-    try{
-      var s=Array.prototype.join.call(arguments," ");
-      if(/FRAG_|BUFFER_|LEVEL_|AUDIO_TRACK_|FPS_DROP|SUBTITLE_/i.test(s))return;
-    }catch(e){}
-    return cl.apply(console,arguments);
-  };
-})();
-
-/* ลด memory ของ HLS โดยไม่สร้าง player ใหม่ */
-function tuneHls(h){
-  if(!h || h.__tieaLM2407)return;
-  h.__tieaLM2407=1;
-  try{
-    var c=h.config||{};
-    if("maxBufferLength" in c)c.maxBufferLength=Math.min(Number(c.maxBufferLength)||20,12);
-    if("maxMaxBufferLength" in c)c.maxMaxBufferLength=Math.min(Number(c.maxMaxBufferLength)||30,18);
-    if("backBufferLength" in c)c.backBufferLength=0;
-    if("maxBufferSize" in c)c.maxBufferSize=Math.min(Number(c.maxBufferSize)||20000000,12000000);
-    if("maxBufferHole" in c)c.maxBufferHole=Math.min(Number(c.maxBufferHole)||0.5,0.3);
-  }catch(e){}
-}
-setInterval(function(){
-  try{
-    tuneHls(window.hls);
-    tuneHls(window.hlsPlayer);
-    tuneHls(window.currentHls);
-  }catch(e){}
-},10000);
-
-/* ลดภาระรูปในรายการช่อง */
-setInterval(function(){
-  try{
-    document.querySelectorAll("#channel-list img").forEach(function(img){
-      img.loading="lazy";
-      img.decoding="async";
-    });
-  }catch(e){}
-},60000);
-
-/* stall assist แบบเบา: ไม่ reload ไม่เปลี่ยนช่อง */
-var last=-1, stuck=0;
-setInterval(function(){
-  var v=document.getElementById("html5-player")||document.querySelector("video");
-  if(!v || v.paused || v.ended || v.seeking){
-    stuck=0; last=v?Number(v.currentTime||0):-1; return;
-  }
-  var t=Number(v.currentTime||0);
-  stuck=(last>=0 && Math.abs(t-last)<0.05)?stuck+1:0;
-  last=t;
-  if(stuck>=4){
-    stuck=0;
-    try{
-      var p=v.play();
-      if(p&&p.catch)p.catch(function(){});
-    }catch(e){}
-  }
-},15000);
-
-/* จำกัด history/debug array ถ้ามี */
-setInterval(function(){
-  try{
-    ["lastDiagReport","diagHistory","traceHistory","safeDiagHistory"].forEach(function(k){
-      if(Array.isArray(window[k]) && window[k].length>20) window[k]=window[k].slice(-10);
-    });
-  }catch(e){}
-},60000);
-
-console.log("TIEA PROJECTOR LOW MEMORY 2407 loaded");
-})();
-</script>
-
-
-<script id="tiea-p54-long-watch-return">
-(function(){
-  function restoreLongWatchPosition(){
-    try{
-      const g=localStorage.getItem("tiea3bb_last_group");
-      const valid=["ดิจิตอล","หนัง","กีฬา","การ์ตูน","ทั้งหมด"];
-      if(g && valid.includes(g) && typeof renderCategory==="function" && currentCategory!==g){
-        renderCategory(g);
-      }
-      const y=Number(localStorage.getItem("tiea3bb_last_scroll")||"0");
-      if(y>0) setTimeout(function(){ window.scrollTo(0,y); },300);
-    }catch(e){}
-  }
-  window.addEventListener("pageshow", restoreLongWatchPosition);
-})();
-</script>
-
-
-<script id="tiea-mfixer-smart-observer-p54b">
-/*
- P5.4B M-FIXER SMART OBSERVER
- Observer-only layer:
- - does not replace loadChannel()
- - does not replace useHLS_STABLE()
- - does not change ticket/native/worker routing
- - only watches the existing HTML5 video after playback has already started
-*/
-(function(){
-  "use strict";
-  const TAG = "[P5.4B SMART OBSERVER]";
-  let timer = null;
-  let lastTime = 0;
-  let lastAdvanceAt = Date.now();
-  let recoveryBusy = false;
-  let recoveryCount = 0;
-
-  function log(msg){
-    try{
-      if(typeof addPlaybackLog === "function") addPlaybackLog("P5.4B", msg);
-      else console.log(TAG, msg);
-    }catch(e){}
-  }
-
-  function isPlayerOpen(){
-    const box = document.getElementById("player-container");
-    return !!(box && getComputedStyle(box).display !== "none");
-  }
-
-  function currentLooksMfixer(){
-    // Observer uses existing state only. No fetch, no resolve-direct, no routing changes.
-    try{
-      const values = [];
-      if(typeof activeUrl !== "undefined") values.push(String(activeUrl || ""));
-      if(typeof currentChannel !== "undefined" && currentChannel){
-        values.push(String(currentChannel.file || ""));
-        values.push(String(currentChannel.name || ""));
-      }
-      const s = values.join(" ").toLowerCase();
-      return s.includes("m-fixer") || s.includes("edge-1.m-fixer.net:8092");
-    }catch(e){ return false; }
-  }
-
-  function recover(){
-    if(recoveryBusy) return;
-    recoveryBusy = true;
-    recoveryCount++;
-    log("SMART RECOVERY #" + recoveryCount + " • video ไม่เดิน >=20s");
-    try{
-      // Use the page's own existing restart path; do not alter its playback engine.
-      if(typeof restartCurrent === "function") restartCurrent();
-      else {
-        const v = document.getElementById("html5-player");
-        if(v){ try{ v.play(); }catch(e){} }
-      }
-    }catch(e){}
-    setTimeout(function(){
-      recoveryBusy = false;
-      lastAdvanceAt = Date.now();
-    }, 5000);
-  }
-
-  function tick(){
-    const v = document.getElementById("html5-player");
-    if(!v || !isPlayerOpen()) {
-      lastTime = 0;
-      lastAdvanceAt = Date.now();
-      return;
-    }
-
-    const ct = Number(v.currentTime || 0);
-    if(ct > lastTime + 0.2){
-      lastTime = ct;
-      lastAdvanceAt = Date.now();
-      return;
-    }
-
-    // Completely dormant unless existing page state identifies M-Fixer.
-    if(!currentLooksMfixer() || v.paused || v.ended) return;
-
-    if(Date.now() - lastAdvanceAt >= 20000){
-      recover();
-    }
-  }
-
-  function start(){
-    if(timer) return;
-    timer = setInterval(tick, 2000);
-    log("Observer พร้อมทำงาน — playback เดิมไม่ถูกแก้");
-  }
-
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", start, {once:true});
-  }else{
-    start();
-  }
-})();
-</script>
-
-
-<script id="tiea-remote-smooth-nav-v09">
-(function(){
-  "use strict";
-  let lastMove = 0;
-
-  function visibleChannels(){
-    return Array.from(document.querySelectorAll("#channel-list .channel"));
-  }
-  function columns(){
-    const list=document.getElementById("channel-list");
-    if(!list) return 1;
-    const cs=getComputedStyle(list);
-    const cols=(cs.gridTemplateColumns||"").split(" ").filter(Boolean).length;
-    return Math.max(1,cols||1);
-  }
-  function focusAt(items,i){
-    if(!items.length) return;
-    i=Math.max(0,Math.min(items.length-1,i));
-    const el=items[i];
-    el.focus({preventScroll:true});
-    el.scrollIntoView({block:"nearest",inline:"nearest",behavior:"auto"});
-  }
-
-  document.addEventListener("keydown",function(e){
-    const player=document.getElementById("player-container");
-    if(player && player.style.display==="block") return;
-
-    const active=document.activeElement;
-    if(!active || !active.classList || !active.classList.contains("channel")) return;
-    if(!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key)) return;
-
-    e.preventDefault();
-    e.stopImmediatePropagation();
-
-    const now=performance.now();
-    if(now-lastMove<55) return;   // กัน key-repeat ถี่เกิน แต่ยังตอบสนองไว
-    lastMove=now;
-
-    const items=visibleChannels();
-    const i=items.indexOf(active);
-    if(i<0) return;
-    const c=columns();
-
-    if(e.key==="ArrowLeft")  focusAt(items,i-1);
-    if(e.key==="ArrowRight") focusAt(items,i+1);
-    if(e.key==="ArrowDown")  focusAt(items,i+c);
-    if(e.key==="ArrowUp"){
-      if(i-c>=0) focusAt(items,i-c);
-      else document.querySelector('.category-btn.active')?.focus();
-    }
-  },true);
-})();
-</script>
-
-
-<script id="tiea-dootvz-clean-start-v011">
-(function(){
-  "use strict";
-
-  function isDootvzUrl(url){
-    try{
-      const x = decodeURIComponent(String(url || ""));
-      return x.includes("dootvz.ddns.net:25461") ||
-             x.includes("m-test.tawatchai250958.workers.dev/dootvz");
-    }catch(e){
-      return String(url || "").includes("dootvz");
-    }
-  }
-
-  const originalLoadChannel = window.loadChannel;
-  if(typeof originalLoadChannel !== "function") return;
-
-  window.loadChannel = async function(channel, el){
-    const f = channel && channel.file ? String(channel.file) : "";
-    if(!isDootvzUrl(f)){
-      return originalLoadChannel.apply(this, arguments);
-    }
-
-    /* Clean only stale HTML5 media state before the normal V0.9 path runs.
-       Do NOT stop/recreate after playback has started and do NOT retry. */
-    try{
-      const v = document.getElementById("html5-player");
-      if(v){
-        v.pause();
-        v.removeAttribute("src");
-        v.load();
-        v.currentTime = 0;
-      }
-    }catch(e){}
-
-    /* Let Android/Projector finish the media-element reset before V0.9 attaches HLS. */
-    await new Promise(function(resolve){
-      requestAnimationFrame(function(){
-        setTimeout(resolve, 90);
-      });
-    });
-
-    return originalLoadChannel.call(this, channel, el);
-  };
-})();
-</script>
 
 </body>
 </html>
