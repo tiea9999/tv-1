@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- V0.15: TrueSport MAIN only — stability-first baseline HLS profile. No fixed level, no live-edge seek, no watchdog. Google backup/list/DRM/DOOTVZ/Workers unchanged. -->
+<!-- V0.16: TrueSport MAIN only — lightweight startup cushion. Full user channel list preserved. No fixed level, no watchdog, no live-edge seek. -->
 
 <!--
 V0.12 STABLE INTERNAL AUTH
@@ -17,7 +17,7 @@ DOOTVZ Clean Start / Remote Smooth / DRM / production Workers unchanged.
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIEA 3BB V0.15 • TRUESPORT PROJECTOR • STABILITY FIRST</title>
+    <title>TIEA 3BB V0.16 • TRUESPORT PROJECTOR • STARTUP CUSHION</title>
 
     <script src="https://ssl.p.jwpcdn.com/player/v/8.26.0/jwplayer.js"></script>
     <script>
@@ -1180,19 +1180,26 @@ function useHLS_STABLE(url){
       levelLoadingRetryDelay:1000,
       fragLoadingRetryDelay:1000
     } : tieaTrueSportMfixer ? {
-      // V0.15: TrueSport MAIN only — use the same stability-first HLS behavior
-      // that settles on the other M-Fixer/movieproxy streams. No level lock,
-      // no forced live-edge seek, no watchdog/restart loop.
-      enableWorker:true,
+      // V0.16 TrueSport MAIN only: return to the lighter V0.13 profile.
+      // Intentionally allow a short startup cushion before play, like the M-Fixer movie behavior.
+      // No fixed quality, no live-edge seek, no watchdog/restart loop.
+      enableWorker:false,
       lowLatencyMode:false,
       autoStartLoad:true,
-      startFragPrefetch:true,
-      backBufferLength:30,
+      liveSyncDurationCount:4,
+      liveMaxLatencyDurationCount:8,
       maxBufferLength:45,
-      maxMaxBufferLength:90,
-      fragLoadingMaxRetry:8,
-      manifestLoadingMaxRetry:5,
-      levelLoadingMaxRetry:5
+      maxMaxBufferLength:60,
+      backBufferLength:20,
+      manifestLoadingTimeOut:15000,
+      levelLoadingTimeOut:15000,
+      fragLoadingTimeOut:20000,
+      manifestLoadingMaxRetry:2,
+      levelLoadingMaxRetry:2,
+      fragLoadingMaxRetry:3,
+      manifestLoadingRetryDelay:1000,
+      levelLoadingRetryDelay:1000,
+      fragLoadingRetryDelay:1000
     } : {
       enableWorker:true,
       lowLatencyMode:false,
@@ -1216,16 +1223,37 @@ function useHLS_STABLE(url){
     currentHls.on(Hls.Events.MANIFEST_PARSED, function(event, data){
       addPlaybackLog("HLS", "MANIFEST_PARSED levels=" + ((data && data.levels) ? data.levels.length : 0));
       applyBalancedVolume(url);
-      // V0.15 TrueSport MAIN: let Hls.js settle naturally like the stable movie streams.
-      // Do not force a quality level and do not jump toward the live edge.
       if(tieaTrueSportMfixer){
-        addPlaybackLog("V0.15", "TRUESPORT STABILITY-FIRST • AUTO LEVEL • NO LIVE-EDGE SEEK");
+        // V0.16: preload first, then start once a small forward buffer exists.
+        // Event-driven only: no polling timer, so remote/UI stays light.
+        let tieaStarted = false;
+        const tryStartTrueSport = function(){
+          if(tieaStarted || !currentHls) return;
+          let ahead = 0;
+          try{
+            if(video.buffered && video.buffered.length){
+              const end = video.buffered.end(video.buffered.length - 1);
+              ahead = Math.max(0, end - Number(video.currentTime || 0));
+            }
+          }catch(e){}
+          if(ahead >= 6){
+            tieaStarted = true;
+            addPlaybackLog("V0.16", "STARTUP CUSHION READY • " + ahead.toFixed(1) + "s");
+            video.play().catch(function(){ setStatus("กด PLAY หนึ่งครั้งเพื่อเริ่มเล่น", true); });
+            setStatus("กำลังเล่น HLS • TrueSport Cushion • " + currentServerName);
+            markPlaybackSuccess("HLS TRUESPORT CUSHION");
+          }
+        };
+        currentHls.on(Hls.Events.FRAG_BUFFERED, tryStartTrueSport);
+        currentHls.on(Hls.Events.BUFFER_APPENDED, tryStartTrueSport);
+        setStatus("TrueSport กำลังสำรองภาพช่วงเริ่มต้น...", true);
+      }else{
+        video.play().catch(function(){
+          setStatus("กด PLAY หนึ่งครั้งเพื่อเริ่มเล่น", true);
+        });
+        setStatus("กำลังเล่น HLS • Analyzer Engine • " + currentServerName);
+        markPlaybackSuccess("HLS ANALYZER");
       }
-      video.play().catch(function(){
-        setStatus("กด PLAY หนึ่งครั้งเพื่อเริ่มเล่น", true);
-      });
-      setStatus("กำลังเล่น HLS • Analyzer Engine • " + currentServerName);
-      markPlaybackSuccess("HLS ANALYZER");
     });
 
     currentHls.on(Hls.Events.FRAG_LOADED, function(event, data){
