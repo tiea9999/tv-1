@@ -2,6 +2,7 @@
 <html lang="th">
 
 <head>
+<!-- STABLE LOCK 2026-09-26: V0.15R2 confirmed on GitHub Pages. Remote OK + ticket/auth OK + internal player. No DIAG code. -->
 <!-- V0.15R2: REMOTE DIRECT + ORIGINAL V0.12 INTERNAL AUTH. Fix: no second ticket-resolution of signed /watch URL. -->
 <!-- V0.15: TrueSport MAIN only — stability-first baseline HLS profile. No fixed level, no live-edge seek, no watchdog. Google backup/list/DRM/DOOTVZ/Workers unchanged. -->
 
@@ -18,7 +19,7 @@ DOOTVZ Clean Start / Remote Smooth / DRM / production Workers unchanged.
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIEA 3BB V0.15R2D • TICKET DIAG • REMOTE UNCHANGED</title>
+    <title>TIEA 3BB V0.15R2 STABLE • REMOTE + INTERNAL AUTH</title>
 
     <script src="https://ssl.p.jwpcdn.com/player/v/8.26.0/jwplayer.js"></script>
     <script>
@@ -1749,82 +1750,6 @@ console.log("TIEA PROJECTOR LOW MEMORY 2407 loaded");
 })();
 </script>
 
-
-
-<script id="tiea-ticket-diag-v015r2d">
-(function(){
-"use strict";
-
-/* Diagnostic only:
-   - remote/navigation unchanged
-   - player routing unchanged
-   - workers unchanged
-   - exposes exact /ticket failure on screen
-*/
-const oldGet = window.getMovieProxyTicketUrl;
-if(typeof oldGet !== "function") return;
-
-window.getMovieProxyTicketUrl = async function(url){
-  if(!isMovieProxyWatch(url)) return url;
-
-  let id="";
-  try{id=(new URL(String(url))).searchParams.get("id")||"";}catch(e){}
-  id=String(id).trim();
-
-  const endpoint = MOVIEPROXY_BASE + "/ticket?id=" + encodeURIComponent(id);
-  setStatus("TICKET DIAG • กำลังขอสิทธิ์ • id=" + (id||"(ว่าง)"), false);
-  addPlaybackLog("TICKET-DIAG","REQUEST " + endpoint);
-
-  try{
-    const res = await fetch(endpoint,{method:"GET",cache:"no-store"});
-    const raw = await res.text();
-    const sample=String(raw||"").replace(/\s+/g," ").slice(0,240);
-
-    addPlaybackLog("TICKET-DIAG","HTTP "+res.status+" • "+sample);
-
-    if(!res.ok){
-      setStatus("TICKET DIAG • HTTP "+res.status+" • "+(sample||res.statusText||"ไม่มีข้อความ"), false);
-      throw new Error("TICKET HTTP "+res.status+" • "+sample);
-    }
-
-    let signed="", exp=0;
-    try{
-      const data=JSON.parse(raw);
-      signed=data.url||data.watch||data.signedUrl||data.signed_url||data.playUrl||data.play_url||"";
-      exp=Number(data.expires||data.exp||0)||0;
-    }catch(e){
-      signed=raw.trim();
-    }
-
-    if(!signed || !/^https?:\/\//i.test(signed)){
-      setStatus("TICKET DIAG • HTTP 200 แต่ URL ไม่ถูกต้อง • "+sample, false);
-      throw new Error("TICKET URL INVALID • "+sample);
-    }
-
-    if(!exp){
-      try{exp=Number(new URL(signed).searchParams.get("exp")||0)||0;}catch(e){}
-    }
-    if(!exp) exp=Math.floor(Date.now()/1000)+540;
-    try{movieProxyTicketCache.set(id,{url:signed,exp});}catch(e){}
-
-    let host="";
-    try{host=new URL(signed).host;}catch(e){}
-    setStatus("TICKET DIAG • PASS HTTP 200 • signed="+host, true);
-    addPlaybackLog("TICKET-DIAG","PASS • signed host="+host);
-    return signed;
-
-  }catch(e){
-    const msg=String((e&&e.message)||e||"UNKNOWN");
-    // fetch() network/CORS failures usually arrive here as TypeError/Failed to fetch.
-    if(!/^TICKET HTTP|^TICKET URL INVALID/.test(msg)){
-      setStatus("TICKET DIAG • FETCH/CORS/NETWORK • "+msg, false);
-      addPlaybackLog("TICKET-DIAG","FETCH ERROR • "+msg);
-    }
-    throw e;
-  }
-};
-})();
-</script>
 
 </body>
 </html>
