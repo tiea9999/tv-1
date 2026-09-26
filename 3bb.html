@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.4-LONG-WATCH-RETURN-REMOTE-SMOOTH-V0.9: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
+<!-- TIEA 3BB V2.4 ANALYZER ENGINE LAB Build 2401-VOL80-TICKET-STABLE-H3-P5.4-LONG-WATCH-RETURN-REMOTE-SMOOTH-V0.9-DOOTVZ-FIRST-START-V0.10: SMART MAIN→BACKUP + THAI PLAYBACK LOG. BASE FILE PRESERVED AS SEPARATE COPY. -->
 <!-- LAB14: REQUIRED/MISSING KID HAS PRIORITY OVER CONFIGURED KID. USES ONLY EXISTING LOCAL CLEARKEY PAIRS. ONE RELOAD MAX. LAB10/STABLE BASE UNCHANGED. -->
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
@@ -80,7 +80,7 @@
 <body>
 
     <div class="back-home" onclick="goHome()">⬅ กลับหน้าหลัก</div>
-    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • P5.4 • REMOTE SMOOTH V0.9 • DOOTVZ INTERNAL</h2>
+    <h2 style="color:orange;text-align:center;">TIEA 3BB V2.4 ANALYZER ENGINE LAB • Build 2401-VOL80 • TICKET STABLE H3 • P5.4 • REMOTE SMOOTH V0.9 • DOOTVZ FIRST START V0.10</h2>
 
     <div id="player-container">
         <div class="player-controls">
@@ -1649,6 +1649,86 @@ console.log("TIEA PROJECTOR LOW MEMORY 2407 loaded");
       else document.querySelector('.category-btn.active')?.focus();
     }
   },true);
+})();
+</script>
+
+
+<script id="tiea-dootvz-first-start-v010">
+(function(){
+  "use strict";
+  let retryUsed = false;
+  let watchTimer = 0;
+  let lastUrl = "";
+
+  function isDootvz(url){
+    try{
+      const x = decodeURIComponent(String(url || ""));
+      return x.includes("dootvz.ddns.net:25461") ||
+             x.includes("m-test.tawatchai250958.workers.dev/dootvz");
+    }catch(e){
+      return String(url || "").includes("dootvz");
+    }
+  }
+
+  function videoStarted(v){
+    return !!(v && !v.paused && v.readyState >= 2 && v.currentTime > 0.15);
+  }
+
+  function arm(url){
+    clearTimeout(watchTimer);
+    if(!isDootvz(url)) return;
+
+    if(url !== lastUrl){
+      lastUrl = url;
+      retryUsed = false;
+    }
+
+    const v = document.getElementById("html5-player");
+    const startTime = v ? Number(v.currentTime || 0) : 0;
+
+    watchTimer = setTimeout(async function(){
+      const video = document.getElementById("html5-player");
+      const moved = video && Number(video.currentTime || 0) > startTime + 0.15;
+
+      if(videoStarted(video) || moved) return;
+      if(retryUsed) return;
+
+      retryUsed = true;
+      try{
+        setStatus("DOOTVZ เริ่มช้า — ลองเชื่อมต่อใหม่ 1 ครั้ง", true);
+        await stopAllPlayers();
+        setTimeout(function(){
+          useHLS_STABLE(url);
+        }, 180);
+      }catch(e){
+        setTimeout(function(){
+          useHLS_STABLE(url);
+        }, 250);
+      }
+    }, 6000);
+  }
+
+  // Wrap only HLS start so every DOOTVZ click gets the watchdog.
+  const originalUseHLS = window.useHLS_STABLE;
+  if(typeof originalUseHLS === "function"){
+    window.useHLS_STABLE = function(url){
+      const result = originalUseHLS.apply(this, arguments);
+      arm(url);
+      return result;
+    };
+  }
+
+  // Once video really starts, cancel the pending watchdog.
+  const v = document.getElementById("html5-player");
+  if(v){
+    ["playing","timeupdate"].forEach(function(ev){
+      v.addEventListener(ev,function(){
+        if(videoStarted(v)){
+          clearTimeout(watchTimer);
+        }
+      },{passive:true});
+    });
+  }
 })();
 </script>
 
