@@ -2,7 +2,7 @@
 <html lang="th">
 
 <head>
-<!-- V0.14: TrueSport MAIN only — worker ON, stable 6/12 live edge, fixed AVC <=720p. Google backup/list/DRM/DOOTVZ/Workers unchanged. -->
+<!-- V0.15: TrueSport MAIN only — stability-first baseline HLS profile. No fixed level, no live-edge seek, no watchdog. Google backup/list/DRM/DOOTVZ/Workers unchanged. -->
 
 <!--
 V0.12 STABLE INTERNAL AUTH
@@ -17,7 +17,7 @@ DOOTVZ Clean Start / Remote Smooth / DRM / production Workers unchanged.
 <!-- ROLLBACK STABLE: V2.1 BASE / NO DIAG / NO TIMELINE PATCH / NO FORCE SEEK -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TIEA 3BB V0.14 • TRUESPORT PROJECTOR • STABLE LEVEL</title>
+    <title>TIEA 3BB V0.15 • TRUESPORT PROJECTOR • STABILITY FIRST</title>
 
     <script src="https://ssl.p.jwpcdn.com/player/v/8.26.0/jwplayer.js"></script>
     <script>
@@ -1180,27 +1180,19 @@ function useHLS_STABLE(url){
       levelLoadingRetryDelay:1000,
       fragLoadingRetryDelay:1000
     } : tieaTrueSportMfixer ? {
-      // V0.14: TrueSport MAIN projector profile. Keep parsing off the UI thread,
-      // sit farther behind live edge, and pin one projector-safe level after manifest.
-      // Backup rows (including Google) keep the original engine below.
+      // V0.15: TrueSport MAIN only — use the same stability-first HLS behavior
+      // that settles on the other M-Fixer/movieproxy streams. No level lock,
+      // no forced live-edge seek, no watchdog/restart loop.
       enableWorker:true,
       lowLatencyMode:false,
       autoStartLoad:true,
       startFragPrefetch:true,
-      liveSyncDurationCount:6,
-      liveMaxLatencyDurationCount:12,
-      maxBufferLength:36,
-      maxMaxBufferLength:48,
-      backBufferLength:15,
-      manifestLoadingTimeOut:15000,
-      levelLoadingTimeOut:15000,
-      fragLoadingTimeOut:20000,
-      manifestLoadingMaxRetry:2,
-      levelLoadingMaxRetry:2,
-      fragLoadingMaxRetry:3,
-      manifestLoadingRetryDelay:1000,
-      levelLoadingRetryDelay:1000,
-      fragLoadingRetryDelay:1000
+      backBufferLength:30,
+      maxBufferLength:45,
+      maxMaxBufferLength:90,
+      fragLoadingMaxRetry:8,
+      manifestLoadingMaxRetry:5,
+      levelLoadingMaxRetry:5
     } : {
       enableWorker:true,
       lowLatencyMode:false,
@@ -1224,22 +1216,10 @@ function useHLS_STABLE(url){
     currentHls.on(Hls.Events.MANIFEST_PARSED, function(event, data){
       addPlaybackLog("HLS", "MANIFEST_PARSED levels=" + ((data && data.levels) ? data.levels.length : 0));
       applyBalancedVolume(url);
-      // V0.14 TrueSport MAIN: do not seek toward the live edge.
-      // Pick one AVC/H.264 <=720p level and keep it fixed to avoid quality switching
-      // causing decoder stalls on Android projectors. No timer/restart loop is added.
+      // V0.15 TrueSport MAIN: let Hls.js settle naturally like the stable movie streams.
+      // Do not force a quality level and do not jump toward the live edge.
       if(tieaTrueSportMfixer){
-        try{
-          const levels = (data && Array.isArray(data.levels)) ? data.levels : (currentHls.levels || []);
-          const safe = chooseProjectorSafeLevel(levels);
-          if(safe >= 0){
-            selectedSafeLevel = safe;
-            currentHls.currentLevel = safe;
-            currentHls.nextLevel = safe;
-            currentHls.loadLevel = safe;
-            const lv = levels[safe] || {};
-            addPlaybackLog("V0.14", "LOCK LEVEL " + safe + " • " + (lv.height || "?") + "p");
-          }
-        }catch(e){}
+        addPlaybackLog("V0.15", "TRUESPORT STABILITY-FIRST • AUTO LEVEL • NO LIVE-EDGE SEEK");
       }
       video.play().catch(function(){
         setStatus("กด PLAY หนึ่งครั้งเพื่อเริ่มเล่น", true);
