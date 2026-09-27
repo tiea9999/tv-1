@@ -3287,7 +3287,7 @@ function showPlayerUI(focusClose){
         }catch(e){}
         playerPanel.classList.add('hide-ui');
       }
-    },3000);
+    },6000);
   }catch(e){}
 }
 
@@ -3298,6 +3298,22 @@ function setupPlayerAutoHide(){
   ['mousemove','mousedown','touchstart','touchmove','pointermove','pointerdown','click'].forEach(ev=>{
     playerPanel.addEventListener(ev,()=>showPlayerUI(false),{passive:true});
   });
+
+  // TIEA UI 6SEC FIX: wake controls reliably from PC mouse / Android air-mouse.
+  // Capture at document level too, because some player layers may consume pointer events.
+  ['mousemove','pointermove','pointerdown','touchstart'].forEach(ev=>{
+    document.addEventListener(ev,()=>{
+      if(playerPanel.classList.contains('show')) showPlayerUI(false);
+    },{passive:true,capture:true});
+  });
+  // Cross-origin iframe events do not bubble to the parent document; entering it can still wake UI.
+  try{
+    const f=document.getElementById('native24Frame');
+    if(f){
+      f.addEventListener('mouseenter',()=>showPlayerUI(false),{passive:true});
+      f.addEventListener('pointerenter',()=>showPlayerUI(false),{passive:true});
+    }
+  }catch(e){}
 
   document.addEventListener('keydown',(e)=>{
     if(!playerPanel.classList.contains('show'))return;
@@ -5415,14 +5431,14 @@ function showUi(openMenu){
       document.body.classList.remove('app24-menu-open');
       document.body.classList.add('app24-ui-hidden');
     }
-  },4500);
+  },6000);
 }
 function hideMenu(){document.body.classList.remove('app24-menu-open')}
 
 addButtons();
 showUi(false);
 
-['pointerdown','mousemove','touchstart'].forEach(ev=>document.addEventListener(ev,(e)=>{
+['pointermove','pointerdown','mousemove','mousedown','touchstart'].forEach(ev=>document.addEventListener(ev,(e)=>{
   if(playerShowing()){ try{if(typeof showPlayerUI==='function')showPlayerUI(false)}catch(_){}; return; }
   // Touch/click near left edge opens side menu; elsewhere only shows top controls.
   const x=(e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX);
