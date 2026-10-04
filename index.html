@@ -1,4 +1,12 @@
 <!DOCTYPE html>
+<!--
+TIEA 24/123 ROLLBACK TEST 2026-10-04
+Disabled only:
+- V5.9.4 desktop 24PlayerHD AUTO HOST interception
+- V5.9.5 desktop 24PlayerHD AUTO HOST iframe interception
+Everything else remains unchanged.
+-->
+
 <html lang="th">
 
 <head>
@@ -4671,7 +4679,7 @@ if(typeof TIEA_V594_PREV_PLAYITEM==='function'){
     let original='';
     try{original=getUrl(item,serverIndex)||''}catch(e){}
 
-    if(tieaV594Desktop() && tieaV594Is24(original)){
+    if(false && tieaV594Desktop() && tieaV594Is24(original)){ /* TEST: V5.9.4 AUTO HOST disabled */
       const title=displayTitle||(item&&item.title)||'24PlayerHD';
       tieaV594SaveReturn(item,title);
       try{if(typeof cleanupPlayer==='function')cleanupPlayer()}catch(e){}
@@ -4805,7 +4813,7 @@ if(typeof V595_PREV_PLAYITEM==='function'){
     let original='';
     try{ original=getUrl(item,serverIndex)||''; }catch(e){}
 
-    if(v595Desktop() && v595Is24(original)){
+    if(false && v595Desktop() && v595Is24(original)){ /* TEST: V5.9.5 AUTO HOST disabled */
       const title=displayTitle||(item&&item.title)||'24PlayerHD';
       v595OpenInsideTiea(original,title);
       return;
