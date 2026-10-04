@@ -4368,7 +4368,7 @@ function v586Go(item,raw,title){
   // 5.9.2H WEB BACK WRAPPER:
   // Open our own wrapper in the SAME tab. The wrapper keeps a visible
   // back-to-EP button and embeds the real All Player underneath.
-  const wrapper='https://tiea9999.github.io/tv-1/all-player-full.html'
+  const wrapper=target /* TEST FINAL: direct provider target, no GitHub wrapper */
     +'?player='+encodeURIComponent(target)
     +'&return='+encodeURIComponent(ret)
     +'&title='+encodeURIComponent(title||'All Player');
@@ -5544,6 +5544,91 @@ window.TIEA_APP24_P6={
   returnBehavior:'same category + scroll'
 };
 console.log('TIEA APP24 P6 ANDROID MOVIEPROXY FINAL GATE loaded');
+})();
+</script>
+
+
+<script id="tiea-google-player-v12-restore-test">
+/* TIEA TEST 2026-10-04
+   Restore the simple Sep-08 Google Worker player path for 24/123/SD/5G.
+   Highest priority: this patch is intentionally placed at the very end.
+*/
+(function(){
+'use strict';
+const GOOGLE='https://tiea-googlecdn-test.tawatchai250958.workers.dev';
+
+function rawUrl(item,i){
+  try{return getUrl(item,i||0)||''}catch(e){return ''}
+}
+function isOldGoogleFamily(raw){
+  try{
+    const u=new URL(String(raw||'').trim());
+    const h=u.hostname.toLowerCase();
+    const p=u.pathname.toLowerCase();
+
+    // Proven 24/123 family used in the Sep-08 V1.2/V1.3 tests.
+    if(h==='main.24playerhd.com') return true;
+    if(h==='main.123hd-serie.com') return true;
+    if(/(^|\.)24playerhd\.com$/.test(h)) return true;
+    if(/(^|\.)123hd-serie\.com$/.test(h)) return true;
+    if(/(^|\.)123hd\.com$/.test(h)) return true;
+
+    // Hosts discovered in the simple Google-player period.
+    if(/(^|\.)mistu250369\.com$/.test(h)) return true;
+    if(/(^|\.)tcl250369\.com$/.test(h)) return true;
+
+    return false;
+  }catch(e){return false}
+}
+
+const PREV=window.playItem;
+if(typeof PREV!=='function') return;
+
+window.playItem=function(item,serverIndex=0,displayTitle=''){
+  const raw=rawUrl(item,serverIndex);
+  if(!isOldGoogleFamily(raw)) return PREV.apply(this,arguments);
+
+  const title=displayTitle||(item&&item.title)||'24/123';
+  const watch=GOOGLE+'/watch?embed=1&url='+encodeURIComponent(raw);
+
+  try{if(typeof cleanupPlayer==='function')cleanupPlayer()}catch(e){}
+  try{
+    state.originalUrl=raw;
+    state.currentUrl=watch;
+    state.currentTitle=title;
+    state._native24Mode=true;
+    state._googleV12Test=true;
+
+    if(native24Frame){
+      native24Frame.src=watch;
+      native24Frame.style.display='block';
+    }
+    try{
+      video.pause();
+      video.removeAttribute('src');
+      video.style.display='none';
+    }catch(e){}
+
+    playerPanel.classList.add('native24-mode','show');
+    playerPanel.classList.remove('hide-ui');
+    const pt=document.getElementById('playerTitle');
+    if(pt)pt.textContent=title;
+    if(typeof setStatus==='function')
+      setStatus('24/123/SD/5G • GOOGLE PLAYER V1.2 TEST');
+    if(typeof showPlayerUI==='function')showPlayerUI(true);
+    return;
+  }catch(e){
+    console.error('GOOGLE PLAYER V1.2 TEST',e);
+    return PREV.apply(this,arguments);
+  }
+};
+
+window.TIEA_GOOGLE_V12_RESTORE_TEST={
+  version:'SEP08 V1.2/V1.3 PATH RESTORE TEST',
+  route:GOOGLE+'/watch?embed=1&url=',
+  bypass:'All Player / index_th.php / old AAA front path'
+};
+console.log('TIEA GOOGLE PLAYER V1.2 RESTORE TEST active');
 })();
 </script>
 
