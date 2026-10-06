@@ -1,3 +1,9 @@
+<!-- TIEA TEST 2026-10-06: VDOHLS RAW AUTO ROUTE
+     TEST 5 LINKS / READY FOR 100+ ITEMS
+     raw vdohls -> TIEA Worker once + playk referer
+     existing TIEA Worker URL -> keep unchanged
+     other providers preserved
+-->
 <!DOCTYPE html>
 <!-- TIEA PATCH 2026-10-06: NO DOUBLE PROXY
      ถ้า URL ผ่าน iptv.tawatchai250958.workers.dev อยู่แล้ว จะไม่ครอบ Worker ซ้ำ
@@ -345,11 +351,24 @@ function getDirectUrl(item){if(!item||typeof item!=='object')return'';return ite
 function getAutoReferer(url){const u=String(url||'').toLowerCase();if(u.includes('vdohls.com'))return'https://playk.playhdhls.xyz/';if(u.includes('ok-hd.com'))return'https://ok-hd.com/';if(u.includes('master.streamhls.com')||u.includes('stream1689.com')||u.includes('037hddmovie.com')||u.includes('037hdmovie.com'))return'https://www.037hddmovie.com/';return'https://www.037hddmovie.com/'}
 function proxyUrl(url,ref){
   url=String(url||'').trim();
-  // NO DOUBLE PROXY: ถ้าเป็นลิงก์ Worker ของ TIEA อยู่แล้ว ให้ใช้ตรง ๆ
+  if(!url)return url;
+
+  // 1) URL ที่ผ่าน TIEA Worker อยู่แล้ว: ห้ามครอบซ้ำ
   try{
     const u=new URL(url);
     if(u.hostname.toLowerCase()==='iptv.tawatchai250958.workers.dev') return url;
   }catch(e){}
+
+  // 2) VDOHLS ดิบ: ใช้กฎเดียวกันทุกเรื่อง
+  //    raw vdohls -> Worker 1 ชั้น + playk Referer
+  try{
+    const u=new URL(url);
+    if(u.hostname.toLowerCase()==='vdohls.com' || u.hostname.toLowerCase().endsWith('.vdohls.com')){
+      return PROXY+encodeURIComponent(url)+'&referer='+encodeURIComponent('https://playk.playhdhls.xyz/');
+    }
+  }catch(e){}
+
+  // 3) Provider อื่น: ใช้ระบบเดิมทั้งหมด
   let out=PROXY+encodeURIComponent(url);
   const r=ref||getAutoReferer(url);
   if(r)out+='&referer='+encodeURIComponent(r);
