@@ -1,3 +1,7 @@
+<!-- TIEA PATCH 2026-10-07: 037HD WORKER-FIRST ROUTE
+     streamhls.com / steamhls88.com -> IPTV Worker + 037 referer
+     NO direct fallback for these hosts; other providers unchanged
+-->
 <!-- TIEA PATCH 2026-10-06: RESTORE ALL MOVIES IN FIRST FILE
      movie-main = หนังใหม่ 2026 / 2025 / Netflix / ฝรั่ง / เอเชีย / ไทย / การ์ตูน / 18+
      movie-24hd + player/provider logic เดิมคงไว้
@@ -1627,9 +1631,24 @@ function normalize24PlayerUrl(url){
   }
 }
 
+function is037HlsUrl(url){
+  try{
+    const h=new URL(String(url||'').trim()).hostname.toLowerCase();
+    return h==='streamhls.com'||h.endsWith('.streamhls.com')||
+           h==='steamhls88.com'||h.endsWith('.steamhls88.com');
+  }catch(e){return false}
+}
+
 function workerUrlFor(url){
   url=String(url||'').trim();
   if(!url)return '';
+
+  // 037HD: never let browser request StreamHLS directly (direct = 403).
+  // Worker P2 handles master, extensionless child playlists and segments.
+  if(is037HlsUrl(url)){
+    return PROXY+encodeURIComponent(url)
+      +'&referer='+encodeURIComponent('https://www.037hddmovie.com/');
+  }
 
   // 24HD CDN ใหม่ vdohls.com ต้องผ่าน IPTV Worker ตัวหลัก
   if(String(url||'').toLowerCase().includes('vdohls.com')){
@@ -2273,6 +2292,9 @@ async function playItem(item,serverIndex=0,displayTitle=''){
   if(sourceIsTorbo){
     // Torbo007 MUST stay inside Worker. Never fall back to direct URL because
     // torbo007 blocks browser-origin requests with 403/CORS.
+    candidates=[workerUrlFor(original)];
+  }else if(is037HlsUrl(original)){
+    // 037HD StreamHLS direct browser request is 403: Worker only, no direct fallback.
     candidates=[workerUrlFor(original)];
   }else if(is24PlayerHdUrl(original)){
     candidates=[workerUrlFor(original)];
