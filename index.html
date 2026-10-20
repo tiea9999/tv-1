@@ -2346,6 +2346,10 @@ async function playItem(item,serverIndex=0,displayTitle=''){
   }else if(isBcdnUrl(original)){
     // B-CDN short movie: movie2 only, no direct fallback.
     candidates=[workerUrlFor(original)];
+  }else if((()=>{try{const h=new URL(original).hostname.toLowerCase();return h==='ezycdn.stream'||h.endsWith('.ezycdn.stream')}catch(e){return false}})()){
+    // APP24-compatible route: ezycdn HLS must use the IPTV Worker first.
+    // No generic 037HD referer, no browser-direct fallback.
+    candidates=[workerUrlFor(original)];
   }else if(is037HlsUrl(original)){
     // 037HD StreamHLS direct browser request is 403: Worker only, no direct fallback.
     candidates=[workerUrlFor(original)];
