@@ -305,10 +305,11 @@
 <body>
     <button id="homeBtn">🏠 HOME</button>
     <section id="new037Test" style="padding:12px;background:#151515;border-bottom:1px solid #444;margin-top:56px">
- <strong>037HD NEW LINK TEST V1 — ทดลองเท่านั้น</strong>
+ <strong>037HD NEW LINK TEST V2 — ทดลองเท่านั้น</strong>
  <p style="font-size:13px;color:#ddd">วางลิงก์ใหม่แบบเต็ม (รวม hls_token) แล้วเลือกทดสอบโดยตรงหรือผ่าน Worker เดิม ไม่มีการบันทึกโทเคนลงไฟล์</p>
  <textarea id="new037Url" rows="3" placeholder="https://playlist.streamhls1688.com/.../index.m3u8?quality=Original&amp;hls_token=..." style="width:100%;background:#222;color:white;padding:8px"></textarea>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn blue" onclick="test037Link(false)">▶ ทดสอบตรง</button><button class="btn purple" onclick="test037Link(true)">▶ ทดสอบผ่าน Worker</button></div>
+ <video id="new037Video" controls playsinline style="display:none;width:100%;max-height:55vh;background:#000;margin-top:10px" ></video>
  <p id="new037Log" style="font-size:13px;color:#ffc107;white-space:pre-wrap"></p>
 </section>
     <div id="grid"></div>
@@ -327,6 +328,51 @@
     <script>
         const PROXY="https://iptv.tawatchai250958.workers.dev/?url=";
  let test037Direct=false;
+let test037Hls=null;
+let test037Timer=null;
+function test037Status(message){
+ const el=document.getElementById('new037Log');
+ if(el)el.textContent=message;
+}
+function test037Cleanup(){
+ clearTimeout(test037Timer);
+ if(test037Hls){try{test037Hls.destroy()}catch(e){}test037Hls=null}
+ const v=document.getElementById('new037Video');
+ if(v){v.pause();v.removeAttribute('src');v.load()}
+}
+function test037Link(useWorker){
+ const input=document.getElementById('new037Url');
+ const v=document.getElementById('new037Video');
+ const raw=(input.value||'').trim();
+ if(!raw){test037Status('กรุณาวางลิงก์ m3u8 ก่อน');return}
+ let u;
+ try{u=new URL(raw);if(!/^https?:$/.test(u.protocol)||!u.pathname.toLowerCase().endsWith('.m3u8'))throw Error('ต้องเป็น URL ของไฟล์ .m3u8')}catch(e){test037Status('URL ไม่ถูกต้อง: '+e.message);return}
+ test037Cleanup();
+ v.style.display='block';
+ const mode=useWorker?'ผ่าน Worker เดิม':'ตรงจากต้นทาง';
+ // Direct: never send the token to the Worker. Worker: preserve the full URL including query.
+ const src=useWorker?PROXY+encodeURIComponent(raw)+'&referer='+encodeURIComponent('https://www.037-hdd.com/'):raw;
+ let finished=false;
+ const report=(msg)=>test037Status('โหมด: '+mode+'\n'+msg);
+ const fail=(msg)=>{if(finished)return;finished=true;clearTimeout(test037Timer);report('❌ '+msg+'\nตรวจ Network/Console เพิ่มเติมได้ (Token อาจหมดอายุ, CORS, HTTP error หรือ Worker ไม่รองรับ)')};
+ v.onerror=()=>fail('Video error code '+(v.error?v.error.code:'unknown'));
+ v.onplaying=()=>{finished=true;clearTimeout(test037Timer);report('✅ เริ่มเล่นภาพแล้ว')};
+ report('⏳ กำลังโหลด playlist...');
+ test037Timer=setTimeout(()=>fail('รอภาพเกิน 25 วินาที'),25000);
+ if(window.Hls&&Hls.isSupported()){
+   test037Hls=new Hls({enableWorker:false,lowLatencyMode:false,manifestLoadingTimeOut:12000,fragLoadingTimeOut:15000,manifestLoadingMaxRetry:1,fragLoadingMaxRetry:1});
+   test037Hls.on(Hls.Events.MANIFEST_PARSED,()=>{report('✅ โหลด playlist สำเร็จ กำลังเริ่มวิดีโอ...');v.play().catch(e=>report('กด Play บนวิดีโอเพื่อเริ่ม: '+e.message))});
+   test037Hls.on(Hls.Events.ERROR,(_ev,data)=>{
+     const details=(data&&data.details)||'unknown';
+     const status=data&&data.response&&data.response.code;
+     report('⚠️ HLS '+details+(status?' HTTP '+status:'')+(data&&data.fatal?' (fatal)':''));
+     if(data&&data.fatal)fail('HLS '+details+(status?' HTTP '+status:''));
+   });
+   test037Hls.loadSource(src);test037Hls.attachMedia(v);
+ }else if(v.canPlayType('application/vnd.apple.mpegurl')){
+   v.src=src;v.play().catch(e=>report('กด Play บนวิดีโอ: '+e.message));
+ }else fail('เบราว์เซอร์ไม่รองรับ HLS และ Hls.js ไม่พร้อม');
+}
 const SOURCES=[
 
 {name:"หนังใหม่2026",type:"anime-json",url:"https://raw.githubusercontent.com/tiea9999/037hd/refs/heads/main/json/หนังใหม่2026.json"},    
