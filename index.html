@@ -982,7 +982,7 @@ function serversOf(item){let o=[],parentPage=pageUrlOf(item);if(Array.isArray(it
 function episodesOf(item,img=''){if(!Array.isArray(item.episodes))return[];const parentPage=pageUrlOf(item);return item.episodes.map((ep,i)=>({title:ep.title||ep.name||ep.ep_name||`EP${i+1}`,image:imgOf(ep)||img,servers:serversOf({...ep,page:pageUrlOf(ep)||parentPage,provider:ep.provider||item.provider||''}),page:pageUrlOf(ep)||parentPage,provider:ep.provider||item.provider||'',type:'episode'})).filter(e=>e.servers.length||e.page)}
 function calcStatus(item,eps){let raw=String(item.status||item.finish||item.end||item.complete||'').trim();if(raw)return raw;let title=String(item.title||''),l=Number(item.latest_ep||0),t=Number(item.total_ep||0);if(title.includes('จบเรื่อง')||title.includes('ครบทุกตอน')||title.includes('(END)'))return'จบแล้ว';if(t&&l&&l>=t)return'จบแล้ว';if(eps&&eps.some(e=>String(e.title||'').includes('ตอนจบ')))return'จบแล้ว';if(eps&&eps.length)return'ยังไม่จบ';return''}
 function normalize(data,parent=''){let out=[],seen=new Set();function add(obj){let k=[obj.kind,obj.title,obj.source,obj.servers?.[0]?.url,obj.episodes?.length].join('|').toLowerCase();if(seen.has(k))return;seen.add(k);out.push(obj)}function walk(n,pg=''){if(Array.isArray(n)){n.forEach(x=>walk(x,pg));return}if(!n||typeof n!=='object')return;let title=n.title||n.name||n.channel||'ไม่มีชื่อ',img=imgOf(n),gs=groupsOf(n,pg||parent),source=cleanUrl(n.source||n.url||n.link||n.file);if((n.type==='menu'||Array.isArray(n.items))&&Array.isArray(n.items)){n.items.forEach(x=>walk(x,title));return}if((n.type==='source'||source)&&source&&isJsonUrl(source)&&!n.episodes){add({kind:'folder',title,image:img,source,groups:gs,group:gs[0]||title,status:n.status||''});return}if(Array.isArray(n.data)){n.data.forEach(x=>walk(x,gs[0]));return}let eps=episodesOf(n,img),sv=serversOf(n);if(eps.length)add({kind:'series',title,image:img,groups:gs,group:gs[0],language:n.language||'',year:n.year||'',status:calcStatus(n,eps),latest_ep:n.latest_ep||eps.length,total_ep:n.total_ep||eps.length,updated:n.updated||n.update||n.last_update||n.date||n.added||n.created||'',episodes:eps,raw:n});else if(sv.length)add({kind:'play',title,image:img,groups:gs,group:gs[0]||'อื่นๆ',language:n.language||'',year:n.year||'',status:calcStatus(n,[]),updated:n.updated||n.update||n.last_update||n.date||n.added||n.created||'',servers:sv,type:n.type||'video',raw:n})}walk(data,parent);return out}
-function parseM3U(text,parent='ทีวี'){let out=[],cur=null;text.split(/\r?\n/).forEach(raw=>{let line=raw.trim();if(!line)return;if(line.startsWith('#EXTINF:')){let logo=line.match(/tvg-logo="([^"]*)"/i)?.[1]||'',group=groupName(line.match(/group-title="([^"]*)"/i)?.[1]||parent),title=line.split(',').pop()?.trim()||'ช่อง';cur={kind:'play',title,image:logo,group,groups:[group],servers:[],type:'tv'}}else if(!line.startsWith('#')&&cur){cur.servers=[{name:'Main',url:line}];out.push(cur);cur=null}});return out}
+function parseM3U(text,parent='ทีวี'){let out=[],cur=null;text.split(/\r?\n/).forEach(raw=>{let line=raw.trim();if(!line)return;if(line.startsWith('#EXTINF:')){let logo=line.match(/tvg-logo="([^"]*)"/i)?.[1]||'',group=groupName(line.match(/group-title="([^"]*)"/i)?.[1]||parent),title=line.split(',').pop()?.trim()||'ช่อง';cur={kind:'play',title,image:logo,group,groups:[group],language:line.match(/tvg-language="([^"]*)"/i)?.[1]||'',year:line.match(/tvg-year="([^"]*)"/i)?.[1]||'',servers:[],type:'tv'}}else if(!line.startsWith('#')&&cur){cur.servers=[{name:'Main',url:line}];out.push(cur);cur=null}});return out}
 function githubToJsdelivr(url){
   try{
     const u=new URL(url);
@@ -1048,6 +1048,12 @@ async function fetchTextFresh(url){
   throw lastErr||new Error('โหลดไม่ได้');
 }
 async function fetchText(url){
+  // TV-1 movie list: always request latest playlist; cached copy is fallback only.
+  const isMovieFeed = url.includes('tiea9999/123HD/') && url.includes('123-movie_m3u8');
+  if(isMovieFeed){
+    try{return await fetchTextFresh(url)}
+    catch(e){console.warn('Movie playlist fresh request failed; trying saved copy',e);}
+  }
   if(state.cache[url])return state.cache[url];
 
   const cacheKey='TIEA_HOME_V71_CACHE_'+url;
@@ -1097,12 +1103,16 @@ async function loadSourcePack(key){
   if(key==='tv-main')return TV_LINKS;
   const pack=SOURCES[key]||[],all=[];
   if(key==='movie-main'){
-    // New entries are appended at the end of the central JSON; show them first.
-    let fresh=[];
-    try{fresh=(await loadUrl(TIEA_MOVIE_ALL_JSON,'หนังทั้งหมด')).reverse();}
-    catch(e){console.warn('Central movie JSON unavailable; keeping old feeds',e);}
-    for(const src of pack){try{all.push(...await loadUrl(src.source,src.title))}catch(e){console.log('โหลดไม่ได้',src.source,e)}}
-    return tieaMovieMerge(fresh,all);
+    // TV-1: 123HD M3U is the primary movie source. Preserve playlist order,
+    // then supplement with the central JSON without hiding new M3U entries.
+    for(const src of pack){
+      try{all.push(...await loadUrl(src.source,src.title))}
+      catch(e){console.log('Movie M3U load failed',src.source,e)}
+    }
+    let extra=[];
+    try{extra=(await loadUrl(TIEA_MOVIE_ALL_JSON,'หนังทั้งหมด')).reverse();}
+    catch(e){console.warn('Central movie JSON unavailable',e);}
+    return tieaMovieMerge(all,extra);
   }
   for(const src of pack){try{all.push(...await loadUrl(src.source,src.title))}catch(e){console.log('โหลดไม่ได้',src.source,e)}}
   return all;
