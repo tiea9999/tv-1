@@ -1201,6 +1201,48 @@ function tieaIs6395Smooth(url){
   } catch (_) { return false; }
 }
 
+// V3: desktop-only stall recovery; preserve V1 buffering and ticket checks.
+function tiea6395Desktop(){
+  return !/Android|iPhone|iPad|iPod|Mobile|SmartTV|Tizen|webOS|TV|CrOS.*ARM/i.test(navigator.userAgent)
+    && !(/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+}
+function tiea6395Recovery(h, video, url){
+  const channel = activeChannel;
+  const token = playbackAttemptToken;
+  let last = video.currentTime, since = 0, stage = 0, started = false;
+  let busy = false, cooldown = 0;
+  const valid = () => currentHls === h && activeChannel === channel && playbackAttemptToken === token;
+  hlsWatchdog = setInterval(async () => {
+    if(!valid() || busy) return;
+    const now = Date.now(), t = video.currentTime;
+    if(document.hidden || video.paused || video.seeking || video.ended){
+      last=t; since=0; stage=0; return;
+    }
+    if(Math.abs(t-last)>0.05){ started=true; last=t; since=0; stage=0; return; }
+    if(!started || now<cooldown) return;
+    if(!since) since=now;
+    if(stage===0 && now-since>=3000){
+      stage=1;
+      addPlaybackLog("RECOVERY", "6395 PC: restart loading");
+      try{ h.startLoad(-1); }catch(e){}
+    }
+    if(stage===1 && now-since>=8000){
+      stage=2; busy=true; cooldown=now+30000;
+      try{
+        const fresh=proxyUrl(await resolvePlaybackUrl(channel?.file || url));
+        if(!valid() || video.paused || document.hidden) return;
+        if(Math.abs(video.currentTime-t)>0.05) return;
+        activeUrl=fresh;
+        addPlaybackLog("RECOVERY", "6395 PC: reconnect HLS");
+        h.stopLoad();
+        h.loadSource(fresh);
+        h.startLoad(-1);
+      }catch(e){ addPlaybackLog("RECOVERY", "6395 PC: reconnect failed"); }
+      finally{ busy=false; since=0; stage=0; }
+    }
+  },1000);
+}
+
 function useHLS_STABLE(url){
   const video = document.getElementById("html5-player");
   const jwBox = document.getElementById("jw-player");
@@ -1232,8 +1274,6 @@ function useHLS_STABLE(url){
 
     const tieaTrueSportMfixer = tieaIsTrueSportMfixerMain();
     const tiea6395Smooth = tieaIs6395Smooth(url);
-    // V2: desktop Windows/macOS/Linux only; keep Android and other devices on V1.
-    const tiea6395PC = tiea6395Smooth && /Windows NT|Macintosh|X11|Linux x86_64/i.test(navigator.userAgent) && !/Android|Mobile|iPhone|iPad|CrOS|SmartTV|HbbTV|Tizen|WebOS|TV/i.test(navigator.userAgent) && !(navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
     currentHls = new Hls(tiea6395Smooth ? {
       enableWorker:true,
       lowLatencyMode:false,
@@ -1241,13 +1281,13 @@ function useHLS_STABLE(url){
       progressive:true,
 
       // ⚽ กีฬา/สดไว: เข้าไว เหมาะกับบอล/กีฬา/ข่าวสด
-      maxBufferLength:tiea6395PC ? 120 : 80,
-      maxMaxBufferLength:tiea6395PC ? 180 : 120,
+      maxBufferLength:80,
+      maxMaxBufferLength:120,
       backBufferLength:30,
       maxBufferHole:4,
-      highBufferWatchdogPeriod:tiea6395PC ? 12 : 8,
-      liveSyncDurationCount:tiea6395PC ? 12 : 8,
-      liveMaxLatencyDurationCount:tiea6395PC ? 30 : 20,
+      highBufferWatchdogPeriod:8,
+      liveSyncDurationCount:8,
+      liveMaxLatencyDurationCount:20,
 
       fragLoadingMaxRetry:10,
       levelLoadingMaxRetry:8,
@@ -1331,6 +1371,7 @@ function useHLS_STABLE(url){
     });
 
     if(tiea6395Smooth) currentHls.__tiea6395Smooth = true;
+    if(tiea6395Smooth && tiea6395Desktop()) tiea6395Recovery(currentHls, video, url);
     currentHls.attachMedia(video);
 
     currentHls.on(Hls.Events.MEDIA_ATTACHED, function(){
