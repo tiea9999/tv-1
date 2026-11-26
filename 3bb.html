@@ -1232,6 +1232,8 @@ function useHLS_STABLE(url){
 
     const tieaTrueSportMfixer = tieaIsTrueSportMfixerMain();
     const tiea6395Smooth = tieaIs6395Smooth(url);
+    // V2: desktop Windows/macOS/Linux only; keep Android and other devices on V1.
+    const tiea6395PC = tiea6395Smooth && /Windows NT|Macintosh|X11|Linux x86_64/i.test(navigator.userAgent) && !/Android|Mobile|iPhone|iPad|CrOS|SmartTV|HbbTV|Tizen|WebOS|TV/i.test(navigator.userAgent) && !(navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
     currentHls = new Hls(tiea6395Smooth ? {
       enableWorker:true,
       lowLatencyMode:false,
@@ -1239,13 +1241,13 @@ function useHLS_STABLE(url){
       progressive:true,
 
       // ⚽ กีฬา/สดไว: เข้าไว เหมาะกับบอล/กีฬา/ข่าวสด
-      maxBufferLength:80,
-      maxMaxBufferLength:120,
+      maxBufferLength:tiea6395PC ? 120 : 80,
+      maxMaxBufferLength:tiea6395PC ? 180 : 120,
       backBufferLength:30,
       maxBufferHole:4,
-      highBufferWatchdogPeriod:8,
-      liveSyncDurationCount:8,
-      liveMaxLatencyDurationCount:20,
+      highBufferWatchdogPeriod:tiea6395PC ? 12 : 8,
+      liveSyncDurationCount:tiea6395PC ? 12 : 8,
+      liveMaxLatencyDurationCount:tiea6395PC ? 30 : 20,
 
       fragLoadingMaxRetry:10,
       levelLoadingMaxRetry:8,
