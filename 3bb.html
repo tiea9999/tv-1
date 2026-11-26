@@ -1201,48 +1201,6 @@ function tieaIs6395Smooth(url){
   } catch (_) { return false; }
 }
 
-// V3: desktop-only stall recovery; preserve V1 buffering and ticket checks.
-function tiea6395Desktop(){
-  return !/Android|iPhone|iPad|iPod|Mobile|SmartTV|Tizen|webOS|TV|CrOS.*ARM/i.test(navigator.userAgent)
-    && !(/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-}
-function tiea6395Recovery(h, video, url){
-  const channel = activeChannel;
-  const token = playbackAttemptToken;
-  let last = video.currentTime, since = 0, stage = 0, started = false;
-  let busy = false, cooldown = 0;
-  const valid = () => currentHls === h && activeChannel === channel && playbackAttemptToken === token;
-  hlsWatchdog = setInterval(async () => {
-    if(!valid() || busy) return;
-    const now = Date.now(), t = video.currentTime;
-    if(document.hidden || video.paused || video.seeking || video.ended){
-      last=t; since=0; stage=0; return;
-    }
-    if(Math.abs(t-last)>0.05){ started=true; last=t; since=0; stage=0; return; }
-    if(!started || now<cooldown) return;
-    if(!since) since=now;
-    if(stage===0 && now-since>=3000){
-      stage=1;
-      addPlaybackLog("RECOVERY", "6395 PC: restart loading");
-      try{ h.startLoad(-1); }catch(e){}
-    }
-    if(stage===1 && now-since>=8000){
-      stage=2; busy=true; cooldown=now+30000;
-      try{
-        const fresh=proxyUrl(await resolvePlaybackUrl(channel?.file || url));
-        if(!valid() || video.paused || document.hidden) return;
-        if(Math.abs(video.currentTime-t)>0.05) return;
-        activeUrl=fresh;
-        addPlaybackLog("RECOVERY", "6395 PC: reconnect HLS");
-        h.stopLoad();
-        h.loadSource(fresh);
-        h.startLoad(-1);
-      }catch(e){ addPlaybackLog("RECOVERY", "6395 PC: reconnect failed"); }
-      finally{ busy=false; since=0; stage=0; }
-    }
-  },1000);
-}
-
 function useHLS_STABLE(url){
   const video = document.getElementById("html5-player");
   const jwBox = document.getElementById("jw-player");
@@ -1371,7 +1329,42 @@ function useHLS_STABLE(url){
     });
 
     if(tiea6395Smooth) currentHls.__tiea6395Smooth = true;
-    if(tiea6395Smooth && tiea6395Desktop()) tiea6395Recovery(currentHls, video, url);
+    // V4: Direct-engine lifecycle on desktop only; signed URL unchanged.
+    const desktop6395 = tiea6395Smooth && !/Android|iPhone|iPad|Mobile|SmartTV|Tizen|webOS/i.test(navigator.userAgent) && /Windows|Macintosh|Linux/i.test(navigator.userAgent);
+    if(desktop6395){
+      const engine = currentHls;
+      let started = false;
+      let lastWarning = 0;
+      engine.on(Hls.Events.MANIFEST_PARSED, function(){
+        if(currentHls !== engine) return;
+        started = true;
+        applyBalancedVolume(url);
+        video.play().catch(()=>setStatus("กด PLAY หนึ่งครั้งเพื่อเริ่มเล่น", true));
+        markPlaybackSuccess("6395 V4");
+        setStatus("กำลังเล่น • " + currentServerName);
+      });
+      engine.on(Hls.Events.ERROR, function(ev, data){
+        if(currentHls !== engine || !data) return;
+        const now = Date.now();
+        if(data.fatal || now-lastWarning > 5000){
+          lastWarning = now;
+          const status = Number(data.response?.code || data.networkDetails?.status || 0);
+          addPlaybackLog(data.fatal ? "FATAL" : "WARN", "6395 V4 " + data.type + "/" + data.details + (status ? " HTTP " + status : ""));
+        }
+        if(!data.fatal) return;
+        if(data.type === Hls.ErrorTypes.NETWORK_ERROR){try{engine.startLoad()}catch(e){}}
+        else if(data.type === Hls.ErrorTypes.MEDIA_ERROR){try{engine.recoverMediaError()}catch(e){}}
+        else handlePlaybackFailure("HLS Fatal: " + data.details, true);
+      });
+      // Same source-before-attach sequence as the working Direct player.
+      // No extra restart timer or per-fragment DOM log rendering.
+      engine.loadSource(url);
+      engine.attachMedia(video);
+      setTimeout(()=>{
+        if(currentHls === engine && !started) addPlaybackLog("WARN", "6395 V4 manifest not ready after 8s");
+      },8000);
+      return;
+    }
     currentHls.attachMedia(video);
 
     currentHls.on(Hls.Events.MEDIA_ATTACHED, function(){
