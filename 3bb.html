@@ -931,18 +931,6 @@ async function openMX(url){
   return openExternal(url);
 }
 
-let clean6395Epoch = 0;
-let clean6395Timer = null;
-let clean6395Retries = 0;
-function clean6395PC(){
-  return !/Android|iPhone|iPad|iPod|Mobile|SmartTV|Tizen|webOS/i.test(navigator.userAgent) && tieaIs6395Smooth(activeChannel?.file || "");
-}
-function cancelClean6395(){
-  ++clean6395Epoch;
-  clearTimeout(clean6395Timer);
-  clean6395Timer = null;
-  clean6395Retries = 0;
-}
 async function stopAllPlayers(){
   const video = document.getElementById("html5-player");
   clearAudioOnlyWatch();
@@ -953,10 +941,6 @@ async function stopAllPlayers(){
   }
 
   if(currentHls){
-    if(clean6395PC()){
-      try{ currentHls.stopLoad(); }catch(e){}
-      try{ currentHls.detachMedia(); }catch(e){}
-    }
     try{ currentHls.destroy(); }catch(e){}
     currentHls = null;
   }
@@ -1051,8 +1035,6 @@ function openPlusServerDirect(url){
 }
 
 async function loadChannel(channel, element){
-  cancelClean6395();
-  const cleanEpoch = clean6395Epoch;
   const nextSessionId = String(channel?.file || channel?.name || "");
   if(movieProxySessionId !== nextSessionId){
     clearMovieProxyTicketSession();
@@ -1090,7 +1072,6 @@ async function loadChannel(channel, element){
   let url;
   try{ url = proxyUrl(await resolvePlaybackUrl(resolvedChannel.file)); }
   catch(e){ return; }
-  if(cleanEpoch !== clean6395Epoch) return;
   activeUrl = url;
   addPlaybackLog("OPEN", "เริ่มเปิด " + currentServerName + " • " + url);
 
@@ -1103,7 +1084,6 @@ async function loadChannel(channel, element){
     return;
   }
 
-  if(clean6395PC()) armClean6395Retry(cleanEpoch);
   if(url.includes(".mpd")){
     playMPDNotice(resolvedChannel, url);
   }else{
@@ -1221,26 +1201,6 @@ function tieaIs6395Smooth(url){
   } catch (_) { return false; }
 }
 
-function armClean6395Retry(epoch){
-  clearTimeout(clean6395Timer);
-  clean6395Timer = setTimeout(async ()=>{
-    if(epoch !== clean6395Epoch || !clean6395PC() || clean6395Retries >= 1) return;
-    const v = document.getElementById("html5-player");
-    if(!v.paused && v.readyState >= 3 && v.currentTime > 0) return;
-    if(document.getElementById("player-container").style.display !== "block") return;
-    clean6395Retries++;
-    const file = activeChannel.file;
-    await stopAllPlayers();
-    if(epoch !== clean6395Epoch) return;
-    clearMovieProxyTicketSession();
-    try{
-      const url = proxyUrl(await resolvePlaybackUrl(file));
-      if(epoch !== clean6395Epoch) return;
-      activeUrl = url;
-      useHLS_STABLE(url);
-    }catch(e){}
-  },16000);
-}
 function useHLS_STABLE(url){
   const video = document.getElementById("html5-player");
   const jwBox = document.getElementById("jw-player");
@@ -1369,10 +1329,11 @@ function useHLS_STABLE(url){
     });
 
     if(tiea6395Smooth) currentHls.__tiea6395Smooth = true;
-    const sessionHls = currentHls;
+    currentHls.attachMedia(video);
+
     currentHls.on(Hls.Events.MEDIA_ATTACHED, function(){
       addPlaybackLog("HLS", "MEDIA_ATTACHED");
-      if(currentHls === sessionHls) sessionHls.loadSource(url);
+      currentHls.loadSource(url);
     });
 
     currentHls.on(Hls.Events.MANIFEST_PARSED, function(event, data){
@@ -1400,7 +1361,7 @@ function useHLS_STABLE(url){
     });
 
     currentHls.on(Hls.Events.ERROR, function(event, data){
-      if(currentHls !== sessionHls) return;
+      if(!currentHls) return;
       const detail = `${data.type || "unknown"}/${data.details || "unknown"}`;
       addPlaybackLog(data.fatal ? "FATAL" : "WARN", "HLS " + detail);
 
@@ -1415,10 +1376,7 @@ function useHLS_STABLE(url){
       }
     });
 
-    currentHls.attachMedia(video);
     video.addEventListener("playing", function analyzerPlaying(){
-      if(currentHls !== sessionHls){ video.removeEventListener("playing", analyzerPlaying); return; }
-      if(clean6395PC()){ clearTimeout(clean6395Timer); clean6395Timer = null; }
       applyBalancedVolume(url);
       addPlaybackLog("VIDEO", "PLAYING " + (video.videoWidth || 0) + "x" + (video.videoHeight || 0));
       setStatus("กำลังเล่น • " + (video.videoWidth || 0) + "x" + (video.videoHeight || 0));
@@ -1436,7 +1394,6 @@ function useHLS_STABLE(url){
 }
 
 async function restartCurrent(){
-  cancelClean6395();
   if(!activeOriginalChannel && !activeChannel) return;
   addPlaybackLog("RELOAD", "ผู้ใช้กดรีโหลด " + currentServerName);
   const resolved = activeOriginalChannel
@@ -1504,11 +1461,6 @@ function setupForceAutoHide(){
 }
 
 async function closePlayer(){
-  cancelClean6395();
-  if(clean6395PC()){
-    ++playbackAttemptToken;
-    clearMovieProxyTicketSession();
-  }
   await stopAllPlayers();
   const box = document.getElementById("player-container");
   box.classList.remove("controls-hidden");
